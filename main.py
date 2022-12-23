@@ -32,6 +32,18 @@ class ScoreDB:
             c.execute("INSERT INTO scores (user_id, score, right_answers_questions_ids, wrong_answers_questions_ids, date) VALUES (?, ?, ?, ?, ?)", (user_id, score, json.dumps(right_answers_questions_ids), json.dumps(wrong_answers_questions_ids), datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
             conn.commit()
 
+    def updateScore(self, user_id, score, right_answers_questions_ids, wrong_answers_questions_ids):
+        with sqlite3.connect(self.fileName) as conn:
+            c = conn.cursor()
+            c.execute("UPDATE scores SET score = ?, right_answers_questions_ids = ?, wrong_answers_questions_ids = ?, date = ? WHERE user_id = ?", (score, json.dumps(right_answers_questions_ids), json.dumps(wrong_answers_questions_ids), datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), user_id))
+            conn.commit()
+
+    def deleteScore(self, user_id):
+        with sqlite3.connect(self.fileName) as conn:
+            c = conn.cursor()
+            c.execute("DELETE FROM scores WHERE user_id = ?", (user_id,))
+            conn.commit()
+
     def getScore(self, user_id):
         with sqlite3.connect(self.fileName) as conn:
             c = conn.cursor()
@@ -221,9 +233,61 @@ async def on_message(message):
         if command not in commandList:
             await message.channel.send("Invalid command")
         else:
-            if command == "question"
+            if command == "question":
+                # question "What is the capital of France?" "Paris;Lyon;Marseille;Lille" 0
+                if len(args) != 3:
+                    await message.channel.send("Invalid arguments")
+                else:
+                    question = args[0]
+                    answers = args[1].split(";")
+                    correct_answer = int(args[2])
+                    if correct_answer >= len(answers):
+                        await message.channel.send("Invalid arguments")
+                    else:
+                        questionDB.addQuestion(question, answers, correct_answer)
+                        await message.channel.send("Question added")
+            elif command == "answer":
+                # answer 1 0
+                if len(args) != 2:
+                    await message.channel.send("Invalid arguments")
+                else:
+                    question_id = int(args[0])
+                    answer = int(args[1])
+                    question = questionDB.getQuestion(question_id)
+                    if question is None:
+                        await message.channel.send("Invalid arguments")
+                    else:
+                        if answer == question[2]:
+                            await message.channel.send("Correct answer")
+                            scoreDB.addRightAnswer(message.author.id, question_id)
+                            questionDB.addRightAnswer(question_id, message.author.id)
+                        else:
+                            await message.channel.send("Wrong answer")
+                            scoreDB.addWrongAnswer(message.author.id, question_id)
+                            questionDB.addWrongAnswer(question_id, message.author.id)
+            elif command == "score":
+                # score
+                if len(args) != 0:
+                    await message.channel.send("Invalid arguments")
+                else:
+                    score = scoreDB.getScore(message.author.id)
+                    if score is None:
+                        await message.channel.send("No score")
+                    else:
+                        await message.channel.send(f"Score: {score[1]}")
+
+def calcPoint(question_id):
+    # 50 points for the correct answer reduced with time (1 point per minute)
+    question = questionDB.getQuestion(question_id)
+    if question is None:
+        return 0
+    else:
+        date = datetime.datetime.strptime(question[3], "%Y-%m-%d %H:%M:%S")
+        return 50 - (datetime.datetime.now() - date).seconds // 60
 
 if __name__ == "__main__":
     scoreDB = ScoreDB("scores.db")
     scoreDB.createTable()
+    questionDB = QuestionDB("questions.db")
+    questionDB.createTable()
     client.run(discordBotToken)
