@@ -1,8 +1,9 @@
 # =================================================================================================================================================================
 # Configuration
-discordBotToken = "TOKEN"
+discordBotToken = "MTA1Njg4MDEzMTgzNjIzMTc1MQ.GrH7J6.tEfOxOCllo2cB89LJKF3A1Yq9vH6Z--1o2-7tM"
 moderatorID = ["461807010086780930"]
 commandPrefix = "%"
+channelQuestionID = 965868671908073514
 # =================================================================================================================================================================
 
 import discord
@@ -14,7 +15,7 @@ import json
 from discord.ext import commands
 from discord_ui import UI, SlashOption
 
-commandList = ["help", "ping", "question", "finish", "top"]
+commandList = ["help", "question", "answer"]
 
 class ScoreDB:
     def __init__(self, fileName):
@@ -26,10 +27,22 @@ class ScoreDB:
             c.execute("CREATE TABLE IF NOT EXISTS scores (id INTEGER PRIMARY KEY, user_id INTEGER, score INTEGER, right_answers_questions_ids TEXT, wrong_answers_questions_ids TEXT, date text)")
             conn.commit()
 
-    def addScore(self, user_id, score, right_answers_questions_ids, wrong_answers_questions_ids):
+    def addScore(self, user_id, score):
         with sqlite3.connect(self.fileName) as conn:
             c = conn.cursor()
-            c.execute("INSERT INTO scores (user_id, score, right_answers_questions_ids, wrong_answers_questions_ids, date) VALUES (?, ?, ?, ?, ?)", (user_id, score, json.dumps(right_answers_questions_ids), json.dumps(wrong_answers_questions_ids), datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+            c.execute("INSERT INTO scores (user_id, score, date) VALUES (?, ?, ?)", (user_id, score, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+            conn.commit()
+
+    def addRightAnswerQuestionID(self, user_id, right_answers_questions_ids):
+        with sqlite3.connect(self.fileName) as conn:
+            c = conn.cursor()
+            c.execute("UPDATE scores SET right_answers_questions_ids = ? WHERE user_id = ?", (json.dumps(right_answers_questions_ids), user_id))
+            conn.commit()
+
+    def addWrongAnswerQuestionID(self, user_id, wrong_answers_questions_ids):
+        with sqlite3.connect(self.fileName) as conn:
+            c = conn.cursor()
+            c.execute("UPDATE scores SET wrong_answers_questions_ids = ? WHERE user_id = ?", (json.dumps(wrong_answers_questions_ids), user_id))
             conn.commit()
 
     def updateScore(self, user_id, score, right_answers_questions_ids, wrong_answers_questions_ids):
@@ -186,6 +199,13 @@ class QuestionDB:
             c.execute("UPDATE questions SET users_wrong_ids = ? WHERE id = ?", (json.dumps(users_wrong_ids), question_id))
             conn.commit()
 
+    def hasAlreadyAnswered(self, question_id, user_id):
+        with sqlite3.connect(self.fileName) as conn:
+            c = conn.cursor()
+            c.execute("SELECT users_right_ids, users_wrong_ids FROM questions WHERE id = ?", (question_id,))
+            users_right_ids, users_wrong_ids = json.loads(c.fetchone()[0]), json.loads(c.fetchone()[1])
+            return user_id in users_right_ids or user_id in users_wrong_ids
+
     def getQuestion(self, question_id):
         with sqlite3.connect(self.fileName) as conn:
             c = conn.cursor()
@@ -229,52 +249,42 @@ async def on_ready():
 async def on_message(message):
     if message.content.startswith(commandPrefix):
         command = message.content[1:].split(" ")[0]
-        args = message.content[1:].split(" ")[1:]
         if command not in commandList:
             await message.channel.send("Invalid command")
         else:
+            print(f"Command {command} executed by {message.author.name}")
             if command == "question":
+                # print the question in the channelQuestionID channel and add it to the database
                 # question "What is the capital of France?" "Paris;Lyon;Marseille;Lille" 0
-                if len(args) != 3:
-                    await message.channel.send("Invalid arguments")
-                else:
-                    question = args[0]
-                    answers = args[1].split(";")
-                    correct_answer = int(args[2])
-                    if correct_answer >= len(answers):
-                        await message.channel.send("Invalid arguments")
-                    else:
-                        questionDB.addQuestion(question, answers, correct_answer)
-                        await message.channel.send("Question added")
+                messageArgs = message.content[1:]
+                question = messageArgs.split("\"")[1]
+                answers = messageArgs.split("\"")[3].split(";")
+                correct_answer = int(messageArgs.split("\"")[4])
+                questionDB.addQuestion(question, answers, correct_answer)
+                embed = discord.Embed(title="Nouvelle question", description=question, color=0x00ff00)
+                for i in range(len(answers)):
+                    embed.add_field(name=f"Réponse {i}", value=answers[i], inline=False)
+                embed.set_footer(text=f"Répondez avec {commandPrefix}answer <id de la réponse>")
+                await client.get_channel(channelQuestionID).send(embed=embed)
             elif command == "answer":
-                # answer 1 0
-                if len(args) != 2:
-                    await message.channel.send("Invalid arguments")
+                # check if the answer is correct and add the user to the right or wrong list
+                # answer 1
+                question_id = questionDB.getQuestions()[-1][0]
+                question = questionDB.getQuestion(question_id)
+                print(question)
+                if question is None:
+                    await message.channel.send("Aucune question n'a été posée")
                 else:
-                    question_id = int(args[0])
-                    answer = int(args[1])
-                    question = questionDB.getQuestion(question_id)
-                    if question is None:
-                        await message.channel.send("Invalid arguments")
+                    answer = int(message.content[1:].split(" ")[1])
+                    print(question[2])
+                    if answer == question[2]:
+                        questionDB.addRightAnswer(question_id, message.author.id)
+                        scoreDB.addRightAnswerQuestionID(message.author.id, question_id, calcPoint(question_id))
+                        await message.channel.send("Bonne réponse !")
                     else:
-                        if answer == question[2]:
-                            await message.channel.send("Correct answer")
-                            scoreDB.addRightAnswer(message.author.id, question_id)
-                            questionDB.addRightAnswer(question_id, message.author.id)
-                        else:
-                            await message.channel.send("Wrong answer")
-                            scoreDB.addWrongAnswer(message.author.id, question_id)
-                            questionDB.addWrongAnswer(question_id, message.author.id)
-            elif command == "score":
-                # score
-                if len(args) != 0:
-                    await message.channel.send("Invalid arguments")
-                else:
-                    score = scoreDB.getScore(message.author.id)
-                    if score is None:
-                        await message.channel.send("No score")
-                    else:
-                        await message.channel.send(f"Score: {score[1]}")
+                        questionDB.addWrongAnswer(question_id, message.author.id)
+                        scoreDB.addWrongAnswerQuestionID(message.author.id, question_id)
+                        await message.channel.send("Mauvaise réponse !")
 
 def calcPoint(question_id):
     # 50 points for the correct answer reduced with time (1 point per minute)
