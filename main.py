@@ -4,6 +4,7 @@ discordBotToken = "MTA1Njg4MDEzMTgzNjIzMTc1MQ.GrH7J6.tEfOxOCllo2cB89LJKF3A1Yq9vH
 moderatorID = ["461807010086780930"]
 commandPrefix = "%"
 channelQuestionID = 965868671908073514
+timeleft = 30 # in minutes
 # =================================================================================================================================================================
 
 import discord
@@ -15,226 +16,89 @@ import json
 from discord.ext import commands
 from discord_ui import UI, SlashOption
 
-commandList = ["help", "question", "answer"]
+commandList = ["help", "question", "answer", "removeQuestion", "leaderboard"]
 
-class ScoreDB:
+class database:
     def __init__(self, fileName):
         self.fileName = fileName
 
     def createTable(self):
         with sqlite3.connect(self.fileName) as conn:
             c = conn.cursor()
-            c.execute("CREATE TABLE IF NOT EXISTS scores (id INTEGER PRIMARY KEY, user_id INTEGER, score INTEGER, right_answers_questions_ids TEXT, wrong_answers_questions_ids TEXT, date text)")
-            conn.commit()
-
-    def addScore(self, user_id, score):
-        with sqlite3.connect(self.fileName) as conn:
-            c = conn.cursor()
-            c.execute("INSERT INTO scores (user_id, score, date) VALUES (?, ?, ?)", (user_id, score, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
-            conn.commit()
-
-    def addRightAnswerQuestionID(self, user_id, right_answers_questions_ids):
-        with sqlite3.connect(self.fileName) as conn:
-            c = conn.cursor()
-            c.execute("UPDATE scores SET right_answers_questions_ids = ? WHERE user_id = ?", (json.dumps(right_answers_questions_ids), user_id))
-            conn.commit()
-
-    def addWrongAnswerQuestionID(self, user_id, wrong_answers_questions_ids):
-        with sqlite3.connect(self.fileName) as conn:
-            c = conn.cursor()
-            c.execute("UPDATE scores SET wrong_answers_questions_ids = ? WHERE user_id = ?", (json.dumps(wrong_answers_questions_ids), user_id))
-            conn.commit()
-
-    def updateScore(self, user_id, score, right_answers_questions_ids, wrong_answers_questions_ids):
-        with sqlite3.connect(self.fileName) as conn:
-            c = conn.cursor()
-            c.execute("UPDATE scores SET score = ?, right_answers_questions_ids = ?, wrong_answers_questions_ids = ?, date = ? WHERE user_id = ?", (score, json.dumps(right_answers_questions_ids), json.dumps(wrong_answers_questions_ids), datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), user_id))
-            conn.commit()
-
-    def deleteScore(self, user_id):
-        with sqlite3.connect(self.fileName) as conn:
-            c = conn.cursor()
-            c.execute("DELETE FROM scores WHERE user_id = ?", (user_id,))
-            conn.commit()
-
-    def getScore(self, user_id):
-        with sqlite3.connect(self.fileName) as conn:
-            c = conn.cursor()
-            c.execute("SELECT score FROM scores WHERE user_id = ?", (user_id,))
-            return c.fetchone()
-
-    def getScores(self):
-        with sqlite3.connect(self.fileName) as conn:
-            c = conn.cursor()
-            c.execute("SELECT id, user_id, score, right_answers_questions_ids, wrong_answers_questions_ids, date FROM scores")
-            return c.fetchall()
-
-    def getScoresByDate(self, date):
-        with sqlite3.connect(self.fileName) as conn:
-            c = conn.cursor()
-            c.execute("SELECT id, user_id, score, right_answers_questions_ids, wrong_answers_questions_ids, date FROM scores WHERE date LIKE ?", (f"%{date}%",))
-            return c.fetchall()
-
-    def getScoresByUser(self, user_id):
-        with sqlite3.connect(self.fileName) as conn:
-            c = conn.cursor()
-            c.execute("SELECT id, user_id, score, right_answers_questions_ids, wrong_answers_questions_ids, date FROM scores WHERE user_id = ?", (user_id,))
-            return c.fetchall()
-
-    def getScoresByScore(self, score):
-        with sqlite3.connect(self.fileName) as conn:
-            c = conn.cursor()
-            c.execute("SELECT id, user_id, score, right_answers_questions_ids, wrong_answers_questions_ids, date FROM scores WHERE score = ?", (score,))
-            return c.fetchall()
-
-    def getScoresByRightAnswersQuestionsIDs(self, right_answers_questions_ids):
-        with sqlite3.connect(self.fileName) as conn:
-            c = conn.cursor()
-            c.execute("SELECT id, user_id, score, right_answers_questions_ids, wrong_answers_questions_ids, date FROM scores WHERE right_answers_questions_ids = ?", (json.dumps(right_answers_questions_ids),))
-            return c.fetchall()
-
-    def getScoresByWrongAnswersQuestionsIDs(self, wrong_answers_questions_ids):
-        with sqlite3.connect(self.fileName) as conn:
-            c = conn.cursor()
-            c.execute("SELECT id, user_id, score, right_answers_questions_ids, wrong_answers_questions_ids, date FROM scores WHERE wrong_answers_questions_ids = ?", (json.dumps(wrong_answers_questions_ids),))
-            return c.fetchall()
-
-    def getScoresByDateAndUser(self, date, user_id):
-        with sqlite3.connect(self.fileName) as conn:
-            c = conn.cursor()
-            c.execute("SELECT id, user_id, score, right_answers_questions_ids, wrong_answers_questions_ids, date FROM scores WHERE date LIKE ? AND user_id = ?", (f"%{date}%", user_id))
-            return c.fetchall()
-
-    def getScoresByDateAndScore(self, date, score):
-        with sqlite3.connect(self.fileName) as conn:
-            c = conn.cursor()
-            c.execute("SELECT id, user_id, score, right_answers_questions_ids, wrong_answers_questions_ids, date FROM scores WHERE date LIKE ? AND score = ?", (f"%{date}%", score))
-            return c.fetchall()
-
-    def getScoresByDateAndRightAnswersQuestionsIDs(self, date, right_answers_questions_ids):
-        with sqlite3.connect(self.fileName) as conn:
-            c = conn.cursor()
-            c.execute("SELECT id, user_id, score, right_answers_questions_ids, wrong_answers_questions_ids, date FROM scores WHERE date LIKE ? AND right_answers_questions_ids = ?", (f"%{date}%", json.dumps(right_answers_questions_ids)))
-            return c.fetchall()
-
-    def getScoresByDateAndWrongAnswersQuestionsIDs(self, date, wrong_answers_questions_ids):
-        with sqlite3.connect(self.fileName) as conn:
-            c = conn.cursor()
-            c.execute("SELECT id, user_id, score, right_answers_questions_ids, wrong_answers_questions_ids, date FROM scores WHERE date LIKE ? AND wrong_answers_questions_ids = ?", (f"%{date}%", json.dumps(wrong_answers_questions_ids)))
-            return c.fetchall()
-
-    def getScoresByUserAndScore(self, user_id, score):
-        with sqlite3.connect(self.fileName) as conn:
-            c = conn.cursor()
-            c.execute("SELECT id, user_id, score, right_answers_questions_ids, wrong_answers_questions_ids, date FROM scores WHERE user_id = ? AND score = ?", (user_id, score))
-            return c.fetchall()
-
-    def getScoresByUserAndRightAnswersQuestionsIDs(self, user_id, right_answers_questions_ids):
-        with sqlite3.connect(self.fileName) as conn:
-            c = conn.cursor()
-            c.execute("SELECT id, user_id, score, right_answers_questions_ids, wrong_answers_questions_ids, date FROM scores WHERE user_id = ? AND right_answers_questions_ids = ?", (user_id, json.dumps(right_answers_questions_ids)))
-            return c.fetchall()
-
-    def getScoresByUserAndWrongAnswersQuestionsIDs(self, user_id, wrong_answers_questions_ids):
-        with sqlite3.connect(self.fileName) as conn:
-            c = conn.cursor()
-            c.execute("SELECT id, user_id, score, right_answers_questions_ids, wrong_answers_questions_ids, date FROM scores WHERE user_id = ? AND wrong_answers_questions_ids = ?", (user_id, json.dumps(wrong_answers_questions_ids)))
-            return c.fetchall()
-
-    def getScoresByUserAndDateAndScore(self, user_id, date, score):
-        with sqlite3.connect(self.fileName) as conn:
-            c = conn.cursor()
-            c.execute("SELECT id, user_id, score, right_answers_questions_ids, wrong_answers_questions_ids, date FROM scores WHERE user_id = ? AND date LIKE ? AND score = ?", (user_id, f"%{date}%", score))
-            return c.fetchall()
-
-    def getScoresByUserAndDateAndRightAnswersQuestionsIDs(self, user_id, date, right_answers_questions_ids):
-        with sqlite3.connect(self.fileName) as conn:
-            c = conn.cursor()
-            c.execute("SELECT id, user_id, score, right_answers_questions_ids, wrong_answers_questions_ids, date FROM scores WHERE user_id = ? AND date LIKE ? AND right_answers_questions_ids = ?", (user_id, f"%{date}%", json.dumps(right_answers_questions_ids)))
-            return c.fetchall()
-
-    def getScoresByUserAndDateAndWrongAnswersQuestionsIDs(self, user_id, date, wrong_answers_questions_ids):
-        with sqlite3.connect(self.fileName) as conn:
-            c = conn.cursor()
-            c.execute("SELECT id, user_id, score, right_answers_questions_ids, wrong_answers_questions_ids, date FROM scores WHERE user_id = ? AND date LIKE ? AND wrong_answers_questions_ids = ?", (user_id, f"%{date}%", json.dumps(wrong_answers_questions_ids)))
-            return c.fetchall()
-
-    def getScoresByUserAndScoreAndRightAnswersQuestionsIDs(self, user_id, score, right_answers_questions_ids):
-        with sqlite3.connect(self.fileName) as conn:
-            c = conn.cursor()
-            c.execute("SELECT id, user_id, score, right_answers_questions_ids, wrong_answers_questions_ids, date FROM scores WHERE user_id = ? AND score = ? AND right_answers_questions_ids = ?", (user_id, score, json.dumps(right_answers_questions_ids)))
-            return c.fetchall()
-
-class QuestionDB:
-    def __init__(self, fileName):
-        self.fileName = fileName
-
-    def createTable(self):
-        with sqlite3.connect(self.fileName) as conn:
-            c = conn.cursor()
-            c.execute("CREATE TABLE IF NOT EXISTS questions (id INTEGER PRIMARY KEY, question TEXT, answers TEXT, correct_answer INTEGER, date text, users_right_ids TEXT, users_wrong_ids TEXT)")
+            c.execute("CREATE TABLE IF NOT EXISTS questions (id INTEGER PRIMARY KEY, question TEXT, answers TEXT, correct_answer INTEGER, date TEXT)")
+            c.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT, points INTEGER)")
             conn.commit()
 
     def addQuestion(self, question, answers, correct_answer):
         with sqlite3.connect(self.fileName) as conn:
             c = conn.cursor()
-            c.execute("INSERT INTO questions (question, answers, correct_answer, date, users_right_ids, users_wrong_ids) VALUES (?, ?, ?, ?, ?, ?)", (question, json.dumps(answers), correct_answer, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), json.dumps([]), json.dumps([])))
+            c.execute("INSERT INTO questions (question, answers, correct_answer, date) VALUES (?, ?, ?, ?)", (question, json.dumps(answers), correct_answer, datetime.datetime.now()))
             conn.commit()
-
-    def addRightAnswer(self, question_id, user_id):
-        with sqlite3.connect(self.fileName) as conn:
-            c = conn.cursor()
-            c.execute("SELECT users_right_ids FROM questions WHERE id = ?", (question_id,))
-            users_right_ids = json.loads(c.fetchone()[0])
-            users_right_ids.append(user_id)
-            c.execute("UPDATE questions SET users_right_ids = ? WHERE id = ?", (json.dumps(users_right_ids), question_id))
-            conn.commit()
-
-    def addWrongAnswer(self, question_id, user_id):
-        with sqlite3.connect(self.fileName) as conn:
-            c = conn.cursor()
-            c.execute("SELECT users_wrong_ids FROM questions WHERE id = ?", (question_id,))
-            users_wrong_ids = json.loads(c.fetchone()[0])
-            users_wrong_ids.append(user_id)
-            c.execute("UPDATE questions SET users_wrong_ids = ? WHERE id = ?", (json.dumps(users_wrong_ids), question_id))
-            conn.commit()
-
-    def hasAlreadyAnswered(self, question_id, user_id):
-        with sqlite3.connect(self.fileName) as conn:
-            c = conn.cursor()
-            c.execute("SELECT users_right_ids, users_wrong_ids FROM questions WHERE id = ?", (question_id,))
-            users_right_ids, users_wrong_ids = json.loads(c.fetchone()[0]), json.loads(c.fetchone()[1])
-            return user_id in users_right_ids or user_id in users_wrong_ids
-
-    def getQuestion(self, question_id):
-        with sqlite3.connect(self.fileName) as conn:
-            c = conn.cursor()
-            c.execute("SELECT question, answers, correct_answer, date, users_right_ids, users_wrong_ids FROM questions WHERE id = ?", (question_id,))
-            return c.fetchone()
 
     def getQuestions(self):
         with sqlite3.connect(self.fileName) as conn:
             c = conn.cursor()
-            c.execute("SELECT id, question, answers, correct_answer, date, users_right_ids, users_wrong_ids FROM questions")
+            c.execute("SELECT * FROM questions")
             return c.fetchall()
 
-    def getQuestionsByUser(self, user_id):
+    def getQuestion(self, question_id):
         with sqlite3.connect(self.fileName) as conn:
             c = conn.cursor()
-            c.execute("SELECT id, question, answers, correct_answer, date, users_right_ids, users_wrong_ids FROM questions WHERE users_right_ids LIKE ? OR users_wrong_ids LIKE ?", (f"%{user_id}%", f"%{user_id}%"))
+            c.execute("SELECT * FROM questions WHERE id=?", (question_id,))
+            return c.fetchone()
+
+    def addRightAnswerToUser(self, user_id, question_id):
+        with sqlite3.connect(self.fileName) as conn:
+            c = conn.cursor()
+            c.execute("INSERT INTO users (id, name, points) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET points=points+?", (user_id, "test", 0, 1))
+            conn.commit()
+
+    def addWrongAnswerToUser(self, user_id, question_id):
+        with sqlite3.connect(self.fileName) as conn:
+            c = conn.cursor()
+            c.execute("INSERT INTO users (id, name, points) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET points=points-?", (user_id, "test", 0, 1))
+            conn.commit()
+
+    def addPointsToUser(self, user_id, points):
+        with sqlite3.connect(self.fileName) as conn:
+            c = conn.cursor()
+            c.execute("INSERT INTO users (id, name, points) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET points=points+?", (user_id, "test", 0, points))
+            conn.commit()
+
+    def getPoints(self, user_id):
+        with sqlite3.connect(self.fileName) as conn:
+            c = conn.cursor()
+            c.execute("SELECT points FROM users WHERE id=?", (user_id,))
+            return c.fetchone()
+
+    def getLeaderboard(self):
+        with sqlite3.connect(self.fileName) as conn:
+            c = conn.cursor()
+            c.execute("SELECT * FROM users ORDER BY points DESC")
             return c.fetchall()
 
-    def getQuestionsByDate(self, date):
+    def removeQuestion(self, question_id):
         with sqlite3.connect(self.fileName) as conn:
             c = conn.cursor()
-            c.execute("SELECT id, question, answers, correct_answer, date, users_right_ids, users_wrong_ids FROM questions WHERE date LIKE ?", (f"%{date}%",))
-            return c.fetchall()
+            c.execute("DELETE FROM questions WHERE id=?", (question_id,))
+            conn.commit()
 
-    def getQuestionsByDateRange(self, date_from, date_to):
+    def IsQuestionOK(self):
+        lastQuestion = self.getQuestions()[-1]
+        if (datetime.datetime.now() - datetime.datetime.strptime(lastQuestion[4], "%Y-%m-%d %H:%M:%S.%f")).total_seconds() > timeleft*60:
+            return False
+        else:
+            return True
+
+    def AlreadyAnswered(self, user_id, question_id):
+        # check if the user already answered the question
         with sqlite3.connect(self.fileName) as conn:
             c = conn.cursor()
-            c.execute("SELECT id, question, answers, correct_answer, date, users_right_ids, users_wrong_ids FROM questions WHERE date BETWEEN ? AND ?", (date_from, date_to))
-            return c.fetchall()
+            c.execute("SELECT * FROM users WHERE id=?", (user_id,))
+            if c.fetchone() is None:
+                return False
+            else:
+                return True
 
 client = discord.Client()
 
@@ -260,7 +124,7 @@ async def on_message(message):
                 question = messageArgs.split("\"")[1]
                 answers = messageArgs.split("\"")[3].split(";")
                 correct_answer = int(messageArgs.split("\"")[4])
-                questionDB.addQuestion(question, answers, correct_answer)
+                database.addQuestion(question, answers, correct_answer)
                 embed = discord.Embed(title="Nouvelle question", description=question, color=0x00ff00)
                 for i in range(len(answers)):
                     embed.add_field(name=f"Réponse {i}", value=answers[i], inline=False)
@@ -269,35 +133,45 @@ async def on_message(message):
             elif command == "answer":
                 # check if the answer is correct and add the user to the right or wrong list
                 # answer 1
-                question_id = questionDB.getQuestions()[-1][0]
-                question = questionDB.getQuestion(question_id)
-                print(question)
-                if question is None:
-                    await message.channel.send("Aucune question n'a été posée")
-                else:
-                    answer = int(message.content[1:].split(" ")[1])
-                    print(question[2])
-                    if answer == question[2]:
-                        questionDB.addRightAnswer(question_id, message.author.id)
-                        scoreDB.addRightAnswerQuestionID(message.author.id, question_id, calcPoint(question_id))
-                        await message.channel.send("Bonne réponse !")
+                messageArgs = message.content[1:]
+                answer = int(messageArgs.split(" ")[1])
+                lastQuestion = database.getQuestions()[-1]
+                if database.IsQuestionOK():
+                    if not database.AlreadyAnswered(message.author.id, lastQuestion[0]):
+                        if answer == lastQuestion[3]:
+                            database.addRightAnswerToUser(message.author.id, lastQuestion[0])
+                            points = calcPoint(lastQuestion[4])
+                            database.addPointsToUser(message.author.id, points)
+                            await message.author.send(f"Bravo ! Vous avez gagné {points} points !")
+                        else:
+                            database.addWrongAnswerToUser(message.author.id, lastQuestion[0])
+                            await message.author.send("Mauvaise réponse !")
                     else:
-                        questionDB.addWrongAnswer(question_id, message.author.id)
-                        scoreDB.addWrongAnswerQuestionID(message.author.id, question_id)
-                        await message.channel.send("Mauvaise réponse !")
+                        await message.author.send("Vous avez déjà répondu à cette question !")
+                else:
+                    await message.author.send("Il n'y a pas de question en cours !")
+            elif command == "leaderboard":
+                # print the leaderboard
+                leaderboard = database.getLeaderboard()
+                embed = discord.Embed(title="Classement", description="", color=0x00ff00)
+                for i in range(len(leaderboard)):
+                    embed.add_field(name=f"{i+1} - {leaderboard[i][1]}", value=leaderboard[i][2], inline=False)
+                await message.channel.send(embed=embed)
+            
 
 def calcPoint(question_id):
     # 50 points for the correct answer reduced with time (1 point per minute)
-    question = questionDB.getQuestion(question_id)
+    question = database.getQuestion(question_id)
     if question is None:
         return 0
     else:
-        date = datetime.datetime.strptime(question[3], "%Y-%m-%d %H:%M:%S")
-        return 50 - (datetime.datetime.now() - date).seconds // 60
+        date = datetime.datetime.strptime(question[4], "%Y-%m-%d %H:%M:%S.%f")
+        return 50 - int((datetime.datetime.now() - date).total_seconds()/60)
+
+def getMessageById(message_id):
+    return client.get_channel(channelQuestionID).fetch_message(message_id)
 
 if __name__ == "__main__":
-    scoreDB = ScoreDB("scores.db")
-    scoreDB.createTable()
-    questionDB = QuestionDB("questions.db")
-    questionDB.createTable()
+    database = database("questions.db")
+    database.createTable()
     client.run(discordBotToken)
