@@ -142,6 +142,7 @@ async def on_message(message):
                             database.addRightAnswerToUser(message.author.id, lastQuestion[0])
                             points = calcPoint(lastQuestion[4])
                             database.addPointsToUser(message.author.id, points)
+                            await message.add_reaction("✅")
                             await message.author.send(f"Bravo ! Vous avez gagné {points} points !")
                         else:
                             database.addWrongAnswerToUser(message.author.id, lastQuestion[0])
