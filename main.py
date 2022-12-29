@@ -3,7 +3,7 @@
 discordBotToken = "MTA1Njg4MDEzMTgzNjIzMTc1MQ.GrH7J6.tEfOxOCllo2cB89LJKF3A1Yq9vH6Z--1o2-7tM"
 moderatorID = ["461807010086780930"]
 commandPrefix = "%"
-channelQuestionID = 965868671908073514
+channelQuestionID = 965868671908073515
 timeleft = 30 # in minutes
 # =================================================================================================================================================================
 
@@ -13,8 +13,7 @@ import asyncio
 import datetime
 import time
 import json
-from discord.ext import commands
-from discord_ui import UI, SlashOption
+import requests
 
 commandList = ["help", "question", "answer", "removeQuestion", "leaderboard"]
 
@@ -26,7 +25,7 @@ class database:
         with sqlite3.connect(self.fileName) as conn:
             c = conn.cursor()
             c.execute("CREATE TABLE IF NOT EXISTS questions (id INTEGER PRIMARY KEY, question TEXT, answers TEXT, correct_answer INTEGER, date TEXT)")
-            c.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT, points INTEGER)")
+            c.execute("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, points INTEGER, idQuestion INTEGER)")
             conn.commit()
 
     def addQuestion(self, question, answers, correct_answer):
@@ -47,58 +46,70 @@ class database:
             c.execute("SELECT * FROM questions WHERE id=?", (question_id,))
             return c.fetchone()
 
-    def addRightAnswerToUser(self, user_id, question_id):
-        with sqlite3.connect(self.fileName) as conn:
-            c = conn.cursor()
-            c.execute("INSERT INTO users (id, name, points) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET points=points+?", (user_id, "test", 0, 1))
-            conn.commit()
-
-    def addWrongAnswerToUser(self, user_id, question_id):
-        with sqlite3.connect(self.fileName) as conn:
-            c = conn.cursor()
-            c.execute("INSERT INTO users (id, name, points) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET points=points-?", (user_id, "test", 0, 1))
-            conn.commit()
-
-    def addPointsToUser(self, user_id, points):
-        with sqlite3.connect(self.fileName) as conn:
-            c = conn.cursor()
-            c.execute("INSERT INTO users (id, name, points) VALUES (?, ?, ?) ON CONFLICT(id) DO UPDATE SET points=points+?", (user_id, "test", 0, points))
-            conn.commit()
-
-    def getPoints(self, user_id):
-        with sqlite3.connect(self.fileName) as conn:
-            c = conn.cursor()
-            c.execute("SELECT points FROM users WHERE id=?", (user_id,))
-            return c.fetchone()
-
-    def getLeaderboard(self):
-        with sqlite3.connect(self.fileName) as conn:
-            c = conn.cursor()
-            c.execute("SELECT * FROM users ORDER BY points DESC")
-            return c.fetchall()
-
     def removeQuestion(self, question_id):
         with sqlite3.connect(self.fileName) as conn:
             c = conn.cursor()
             c.execute("DELETE FROM questions WHERE id=?", (question_id,))
             conn.commit()
 
-    def IsQuestionOK(self):
-        lastQuestion = self.getQuestions()[-1]
-        if (datetime.datetime.now() - datetime.datetime.strptime(lastQuestion[4], "%Y-%m-%d %H:%M:%S.%f")).total_seconds() > timeleft*60:
-            return False
-        else:
-            return True
+    def addUser(self, user_id):
+        if self.getUser(user_id) == None:
+            with sqlite3.connect(self.fileName) as conn:
+                c = conn.cursor()
+                c.execute("INSERT INTO users (id, points, idQuestion) VALUES (?, ?, ?)", (user_id, 0, 0))
+                conn.commit()
 
-    def AlreadyAnswered(self, user_id, question_id):
-        # check if the user already answered the question
+    def getUser(self, user_id):
         with sqlite3.connect(self.fileName) as conn:
             c = conn.cursor()
             c.execute("SELECT * FROM users WHERE id=?", (user_id,))
-            if c.fetchone() is None:
-                return False
-            else:
+            return c.fetchone()
+
+    def addRightAnswerToUser(self, user_id, question_id):
+        with sqlite3.connect(self.fileName) as conn:
+            c = conn.cursor()
+            c.execute("UPDATE users SET points=points+?, idQuestion=? WHERE id=?", (calcPoint(question_id), question_id, user_id))
+            conn.commit()
+
+    def addWrongAnswerToUser(self, user_id, question_id):
+        with sqlite3.connect(self.fileName) as conn:
+            c = conn.cursor()
+            c.execute("UPDATE users SET idQuestion=? WHERE id=?", (question_id, user_id))
+            conn.commit()
+    
+    def addQuestionToUser(self, user_id, question_id):
+        with sqlite3.connect(self.fileName) as conn:
+            c = conn.cursor()
+            c.execute("UPDATE users SET idQuestion=? WHERE id=?", (question_id, user_id))
+            conn.commit()
+
+    def addPointsToUser(self, user_id, points):
+        with sqlite3.connect(self.fileName) as conn:
+            c = conn.cursor()
+            c.execute("UPDATE users SET points=points+? WHERE id=?", (points, user_id))
+            conn.commit()
+
+    def removePointsToUser(self, user_id, points):
+        with sqlite3.connect(self.fileName) as conn:
+            c = conn.cursor()
+            c.execute("UPDATE users SET points=points-? WHERE id=?", (points, user_id))
+            conn.commit()
+
+    def AlreadyAnswered(self, user_id, question_id):
+        print(user_id, question_id)
+        try:
+            if self.getUser(user_id)[3] == question_id:
                 return True
+            else:
+                return False
+        except:
+            self.addUser(user_id)
+    
+    def getLeaderboard(self):
+        with sqlite3.connect(self.fileName) as conn:
+            c = conn.cursor()
+            c.execute("SELECT * FROM users ORDER BY points DESC")
+            return c.fetchall()
 
 client = discord.Client()
 
@@ -125,41 +136,42 @@ async def on_message(message):
                 answers = messageArgs.split("\"")[3].split(";")
                 correct_answer = int(messageArgs.split("\"")[4])
                 database.addQuestion(question, answers, correct_answer)
-                embed = discord.Embed(title="Nouvelle question", description=question, color=0x00ff00)
+                embed = discord.Embed(title="Question", description=question, color=0x00ff00)
                 for i in range(len(answers)):
-                    embed.add_field(name=f"Réponse {i}", value=answers[i], inline=False)
-                embed.set_footer(text=f"Répondez avec {commandPrefix}answer <id de la réponse>")
-                await client.get_channel(channelQuestionID).send(embed=embed)
+                    embed.add_field(name=f"Answer {i}", value=answers[i], inline=False)
+                embed.set_footer(text=f"Answer with {commandPrefix}answer <answer number> in {timeleft} minutes")
+                msg = await client.get_channel(channelQuestionID).send(embed=embed)
+                await message.add_reaction("✅")
             elif command == "answer":
-                # check if the answer is correct and add the user to the right or wrong list
-                # answer 1
-                messageArgs = message.content[1:]
-                answer = int(messageArgs.split(" ")[1])
-                lastQuestion = database.getQuestions()[-1]
-                if database.IsQuestionOK():
-                    if not database.AlreadyAnswered(message.author.id, lastQuestion[0]):
-                        if answer == lastQuestion[3]:
-                            database.addRightAnswerToUser(message.author.id, lastQuestion[0])
-                            points = calcPoint(lastQuestion[4])
-                            database.addPointsToUser(message.author.id, points)
-                            await message.add_reaction("✅")
-                            await message.author.send(f"Bravo ! Vous avez gagné {points} points !")
-                        else:
-                            database.addWrongAnswerToUser(message.author.id, lastQuestion[0])
-                            await message.author.send("Mauvaise réponse !")
-                    else:
-                        await message.author.send("Vous avez déjà répondu à cette question !")
+                # check if the user has already answered to the question
+                # answer 0
+                print(database.getQuestions()[-1][0])
+                if database.AlreadyAnswered(message.author.id, database.getQuestions()[-1][0]):
+                    await message.channel.send("You already answered to this question")
+                    await message.add_reaction("❌")
                 else:
-                    await message.author.send("Il n'y a pas de question en cours !")
+                    messageArgs = message.content[1:]
+                    answer = int(messageArgs.split(" ")[1])
+                    question = database.getQuestions()[-1]
+                    if answer == question[3]:
+                        await message.author.send(f"Correct answer")
+                        await message.add_reaction("✅")
+                        database.addRightAnswerToUser(message.author.id, question[0])
+                        database.addPointsToUser(message.author.id, calcPoint(question[0]))
+                        database.addQuestionToUser(message.author.id, question[0])
+                    else:
+                        await message.author.send(f"Incorrect answer")
+                        await message.add_reaction("✅")
+                        database.addWrongAnswerToUser(message.author.id, question[0])
+                        database.addQuestionToUser(message.author.id, question[0])
             elif command == "leaderboard":
                 # print the leaderboard
                 leaderboard = database.getLeaderboard()
-                embed = discord.Embed(title="Classement", description="", color=0x00ff00)
-                for i in range(len(leaderboard)):
-                    embed.add_field(name=f"{i+1} - {leaderboard[i][1]}", value=leaderboard[i][2], inline=False)
-                await message.channel.send(embed=embed)
+                embed = discord.Embed(title="Leaderboard", color=0x00ff00)
+                print(leaderboard)
+                for i in range(50):
+                    embed.add_field(name=f"{i+1}. {getNameById(leaderboard[i][0])}", value=f"{leaderboard[i][1]} points", inline=False)
             
-
 def calcPoint(question_id):
     # 50 points for the correct answer reduced with time (1 point per minute)
     question = database.getQuestion(question_id)
@@ -171,6 +183,10 @@ def calcPoint(question_id):
 
 def getMessageById(message_id):
     return client.get_channel(channelQuestionID).fetch_message(message_id)
+
+def getNameById(user_id):
+    requete = requests.get(f"https://discord.com/api/v8/users/{user_id}", headers={"Authorization": f"Bot {discordBotToken}"})
+    return requete.json()["username"]
 
 if __name__ == "__main__":
     database = database("questions.db")
