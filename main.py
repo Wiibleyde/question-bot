@@ -275,6 +275,20 @@ async def get_username(user_id: int):
     user = await client.fetch_user(user_id)
     return user.name
 
+async def StatusChanger():
+    await client.wait_until_ready()
+    while not client.is_closed():
+        # display 3 first users in the leaderboard
+        leaderboard = database.getLeaderboard()
+        status = ""
+        for i in range(min(3, len(leaderboard))):
+            status = status + f"{int(i)+1}. {await get_username(leaderboard[i][0])}" + " - " + f"{leaderboard[i][1]} points" + " | "
+        status = status[:-2]
+        await client.change_presence(activity=discord.Game(name=status))
+        await asyncio.sleep(1)
+
+StatusChangerTask = client.loop.create_task(StatusChanger())
+
 if __name__ == "__main__":
     database = database("questions.db")
     database.createTable()
