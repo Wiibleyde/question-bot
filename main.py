@@ -96,9 +96,8 @@ class database:
             conn.commit()
 
     def AlreadyAnswered(self, user_id, question_id):
-        print(user_id, question_id)
         try:
-            if self.getUser(user_id)[3] == question_id:
+            if self.getUser(user_id)[2] == question_id:
                 return True
             else:
                 return False
