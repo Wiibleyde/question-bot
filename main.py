@@ -1,7 +1,7 @@
 # =================================================================================================================================================================
 # Configuration
 discordBotToken = "MTA1Njg4MDEzMTgzNjIzMTc1MQ.GrH7J6.tEfOxOCllo2cB89LJKF3A1Yq9vH6Z--1o2-7tM"
-moderatorID = ["461807010086780930"]
+moderatorID = [461807010086780930, 374173210519928832]
 commandPrefix = "<"
 channelQuestionID = 1058101751120674967
 timeleft = 30 # in minutes
@@ -15,7 +15,7 @@ import time
 import json
 import requests
 
-commandList = ["help", "question", "answer", "leaderboard"]
+commandList = ["help", "question", "answer", "leaderboard", "addpoints", "removepoints"]
 
 class database:
     def __init__(self, fileName):
@@ -216,7 +216,7 @@ async def on_message(message):
             await message.channel.send("Invalid command")
         else:
             logDB.addLog(command, message.author.name)
-            if command == "question":
+            if command == "question" and message.author.id in moderatorID:
                 messageArgs = message.content[1:]
                 question = messageArgs.split("\"")[1]
                 answers = messageArgs.split("\"")[3].split(";")
@@ -228,6 +228,9 @@ async def on_message(message):
                 embed.set_footer(text=f"Répondez avec le {commandPrefix}answer <numéro de réponse> en {timeleft} de minutes")
                 msg = await client.get_channel(channelQuestionID).send(embed=embed)
                 await message.add_reaction("✅")
+            elif command == "question":
+                await message.channel.send("Vous n'avez pas les permissions pour utiliser cette commande !")
+                await message.add_reaction("❌")
             elif command == "answer":
                 if database.AlreadyAnswered(message.author.id, database.getQuestions()[-1][0]):
                     await message.channel.send("Vous avez déjà répondu à cette question !")
@@ -254,6 +257,43 @@ async def on_message(message):
                 for i in range(min(10, len(leaderboard))):
                     embed.add_field(name=f"{int(i)+1}. {await get_username(leaderboard[i][0])}", value=f"{leaderboard[i][1]} points", inline=False)
                 await message.channel.send(embed=embed)
+            elif command == "addpoints" and message.author.id in moderatorID:
+                messageArgs = message.content[1:]
+                user = messageArgs.split(" ")[1]
+                points = int(messageArgs.split(" ")[2])
+                if database.getUser(user) == None:
+                    await message.channel.send("Cet utilisateur n'existe pas ou n'a pas encore répondu à une question !")
+                    await message.add_reaction("❌")
+                else:
+                    database.addPointsToUser(user, points)
+                    await message.add_reaction("✅")
+            elif command == "addpoints":
+                print(message.author.id)
+                print(moderatorID)
+                await message.channel.send("Vous n'avez pas les permissions pour utiliser cette commande !")
+                await message.add_reaction("❌")
+            elif command == "removepoints" and message.author.id in moderatorID:
+                messageArgs = message.content[1:]
+                user = messageArgs.split(" ")[1]
+                points = int(messageArgs.split(" ")[2])
+                if database.getUser(user) == None:
+                    await message.channel.send("Cet utilisateur n'existe pas ou n'a pas encore répondu à une question !")
+                    await message.add_reaction("❌")
+                else:
+                    database.removePointsToUser(user, points)
+                    await message.add_reaction("✅")
+            elif command == "removepoints":
+                await message.channel.send("Vous n'avez pas les permissions pour utiliser cette commande !")
+                await message.add_reaction("❌")
+            elif command == "help":
+                embed = discord.Embed(title="Help", color=0x00ff00)
+                embed.add_field(name=f"{commandPrefix}answer <numéro de la réponse>", value="Répond à la question", inline=False)
+                embed.add_field(name=f"{commandPrefix}leaderboard", value="Affiche le leaderboard", inline=False)
+                if message.author.id in moderatorID:
+                    embed.add_field(name=f"{commandPrefix}question \"<question>\" \"<réponse 1>;<réponse 2>;...\" <numéro de la bonne réponse>", value="Pose une question", inline=False)
+                    embed.add_field(name=f"{commandPrefix}addpoints <user> <nombre de points>", value="Ajoute des points à un utilisateur", inline=False)
+                    embed.add_field(name=f"{commandPrefix}removepoints <user> <nombre de points>", value="Retire des points à un utilisateur", inline=False)
+                await message.channel.send(embed=embed)
                             
 def calcPoint(question_id):
     question = database.getQuestion(question_id)
@@ -279,7 +319,7 @@ async def StatusChanger():
             status = status + f"{int(i)+1}. {await get_username(leaderboard[i][0])}" + " - " + f"{leaderboard[i][1]} points" + " | "
         status = status[:-2]
         await client.change_presence(activity=discord.Game(name=status))
-        await asyncio.sleep(1)
+        await asyncio.sleep(10)
 
 if __name__ == "__main__":
     database = database("quest-user.db")
