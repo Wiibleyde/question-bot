@@ -303,8 +303,8 @@ async def on_message(message):
                 embed.add_field(name=f"{commandPrefix}leaderboard", value="Affiche le leaderboard", inline=False)
                 if message.author.id in moderatorID:
                     embed.add_field(name=f"{commandPrefix}question \"<question>\" \"<réponse 1>;<réponse 2>;...\" <numéro de la bonne réponse>", value="Pose une question", inline=False)
-                    embed.add_field(name=f"{commandPrefix}addpoints <user> <nombre de points>", value="Ajoute des points à un utilisateur", inline=False)
-                    embed.add_field(name=f"{commandPrefix}removepoints <user> <nombre de points>", value="Retire des points à un utilisateur", inline=False)
+                    embed.add_field(name=f"{commandPrefix}addpoints <user_id> <nombre de points>", value="Ajoute des points à un utilisateur", inline=False)
+                    embed.add_field(name=f"{commandPrefix}removepoints <user_id> <nombre de points>", value="Retire des points à un utilisateur", inline=False)
                 await message.channel.send(embed=embed)
                             
 def calcPoint(question_id):
