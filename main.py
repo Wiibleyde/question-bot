@@ -1,7 +1,7 @@
 # =================================================================================================================================================================
 # Configuration
 discordBotToken = "MTA1Njg4MDEzMTgzNjIzMTc1MQ.GrH7J6.tEfOxOCllo2cB89LJKF3A1Yq9vH6Z--1o2-7tM"
-moderatorID = [461807010086780930, 374173210519928832,280804426376151041]
+moderatorID = [461807010086780930, 374173210519928832,280804426376151041,343306415496101888,367657384782331904,318814150967164930,138691758035828736,616969786718683167,777137175522443274,77578250329745001,232518184308178944,686284158414487688,552224631671619585,359784511988301824,95185632015417344]
 commandPrefix = "?"
 channelQuestionID = 1058101751120674967
 timeleft = 50 # in minutes
@@ -17,7 +17,7 @@ import requests
 
 commandList = ["help", "question", "answer", "leaderboard", "addpoints", "removepoints"]
 
-class database:
+class mainDB:
     def __init__(self, fileName):
         self.fileName = fileName
 
@@ -334,7 +334,7 @@ async def StatusChanger():
         await asyncio.sleep(3)
 
 if __name__ == "__main__":
-    database = database("quest-user.db")
+    database = mainDB("quest-user.db")
     database.createTable()
     logDB=LogCommandDB("log.db")
     logDB.createTable()
