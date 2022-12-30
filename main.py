@@ -331,7 +331,7 @@ async def StatusChanger():
             status = status + f"{int(i)+1}. {await get_username(leaderboard[i][0])}" + " - " + f"{leaderboard[i][1]} points" + " | "
         status = status[:-2]
         await client.change_presence(activity=discord.Game(name=status))
-        await asyncio.sleep(10)
+        await asyncio.sleep(3)
 
 if __name__ == "__main__":
     database = database("quest-user.db")
