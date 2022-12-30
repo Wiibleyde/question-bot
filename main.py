@@ -233,7 +233,7 @@ async def on_message(message):
                 await message.add_reaction("❌")
             elif command == "answer":
                 if database.AlreadyAnswered(message.author.id, database.getQuestions()[-1][0]):
-                    await message.channel.send("Vous avez déjà répondu à cette question !")
+                    await message.author.send("Vous avez déjà répondu à cette question !")
                     await message.add_reaction("❌")
                 else:
                     messageArgs = message.content[1:]
