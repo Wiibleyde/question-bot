@@ -247,7 +247,12 @@ async def on_message(message):
                     await message.add_reaction("❌")
                 else:
                     messageArgs = message.content[1:]
-                    answer = int(messageArgs.split(" ")[1])-1
+                    try:
+                        answer = int(messageArgs.split(" ")[1])-1
+                    except:
+                        await message.author.send("La réponse n'est pas valide !")
+                        await message.add_reaction("❌")
+                        return
                     question = database.getQuestions()[-1]
                     if answer == question[3]:
                         pointsEarned = calcPoint(question[0])
@@ -270,7 +275,12 @@ async def on_message(message):
             elif command == "addpoints" and message.author.id in moderatorID:
                 messageArgs = message.content[1:]
                 user = messageArgs.split(" ")[1]
-                points = int(messageArgs.split(" ")[2])
+                try:
+                    points = int(messageArgs.split(" ")[2])
+                except:
+                    await message.channel.send("Le nombre de points n'est pas valide !")
+                    await message.add_reaction("❌")
+                    return
                 if database.getUser(user) == None:
                     await message.channel.send("Cet utilisateur n'existe pas ou n'a pas encore répondu à une question !")
                     await message.add_reaction("❌")
@@ -285,7 +295,12 @@ async def on_message(message):
             elif command == "removepoints" and message.author.id in moderatorID:
                 messageArgs = message.content[1:]
                 user = messageArgs.split(" ")[1]
-                points = int(messageArgs.split(" ")[2])
+                try:
+                    points = int(messageArgs.split(" ")[2])
+                except:
+                    await message.channel.send("Le nombre de points n'est pas valide !")
+                    await message.add_reaction("❌")
+                    return
                 if database.getUser(user) == None:
                     await message.channel.send("Cet utilisateur n'existe pas ou n'a pas encore répondu à une question !")
                     await message.add_reaction("❌")
