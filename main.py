@@ -3,7 +3,7 @@
 discordBotToken = "MTA1Njg4MDEzMTgzNjIzMTc1MQ.GrH7J6.tEfOxOCllo2cB89LJKF3A1Yq9vH6Z--1o2-7tM"
 moderatorID = [461807010086780930, 374173210519928832,280804426376151041]
 commandPrefix = "<"
-channelQuestionID = 1058408613527437363
+channelQuestionID = 1058101751120674967
 timeleft = 30 # in minutes
 # =================================================================================================================================================================
 
