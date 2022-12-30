@@ -2,8 +2,8 @@
 # Configuration
 discordBotToken = "MTA1Njg4MDEzMTgzNjIzMTc1MQ.GrH7J6.tEfOxOCllo2cB89LJKF3A1Yq9vH6Z--1o2-7tM"
 moderatorID = ["461807010086780930"]
-commandPrefix = "%"
-channelQuestionID = 965868671908073515
+commandPrefix = "<"
+channelQuestionID = 1058101751120674967
 timeleft = 30 # in minutes
 # =================================================================================================================================================================
 
@@ -217,8 +217,6 @@ async def on_message(message):
         else:
             logDB.addLog(command, message.author.name)
             if command == "question":
-                # print the question in the channelQuestionID channel and add it to the database
-                # question "What is the capital of France?" "Paris;Lyon;Marseille;Lille" 0
                 messageArgs = message.content[1:]
                 question = messageArgs.split("\"")[1]
                 answers = messageArgs.split("\"")[3].split(";")
@@ -226,33 +224,31 @@ async def on_message(message):
                 database.addQuestion(question, answers, correct_answer)
                 embed = discord.Embed(title="Question", description=question, color=0x00ff00)
                 for i in range(len(answers)):
-                    embed.add_field(name=f"Answer {i}", value=answers[i], inline=False)
-                embed.set_footer(text=f"Answer with {commandPrefix}answer <answer number> in {timeleft} minutes")
+                    embed.add_field(name=f"Réponse n°{i}", value=answers[i], inline=False)
+                embed.set_footer(text=f"Répondez avec le {commandPrefix}answer <numéro de réponse> en {timeleft} de minutes")
                 msg = await client.get_channel(channelQuestionID).send(embed=embed)
                 await message.add_reaction("✅")
             elif command == "answer":
-                # check if the user has already answered to the question
-                # answer 0
-                print(database.getQuestions()[-1][0])
                 if database.AlreadyAnswered(message.author.id, database.getQuestions()[-1][0]):
-                    await message.channel.send("You already answered to this question")
+                    await message.channel.send("Vous avez déjà répondu à cette question !")
                     await message.add_reaction("❌")
                 else:
                     messageArgs = message.content[1:]
                     answer = int(messageArgs.split(" ")[1])
                     question = database.getQuestions()[-1]
                     if answer == question[3]:
-                        await message.author.send(f"Correct answer")
+                        pointsEarned = calcPoint(question[0])
+                        await message.author.send(f"Bonne réponse ! Vous avez gagné {pointsEarned} points !")
                         await message.add_reaction("✅")
                         database.addRightAnswerToUser(message.author.id, question[0])
                         database.addQuestionToUser(message.author.id, question[0])
                     else:
-                        await message.author.send(f"Incorrect answer")
+                        await message.author.send(f"Mauvaise réponse, la bonne réponse était la réponse n°{question[3]}")
                         await message.add_reaction("✅")
                         database.addWrongAnswerToUser(message.author.id, question[0])
                         database.addQuestionToUser(message.author.id, question[0])
+                await message.delete()
             elif command == "leaderboard":
-                # print the leaderboard
                 leaderboard = database.getLeaderboard()
                 embed = discord.Embed(title="Leaderboard", color=0x00ff00)
                 for i in range(min(10, len(leaderboard))):
@@ -260,7 +256,6 @@ async def on_message(message):
                 await message.channel.send(embed=embed)
                             
 def calcPoint(question_id):
-    # 50 points for the correct answer reduced with time (1 point per minute)
     question = database.getQuestion(question_id)
     if question is None:
         return 0
@@ -278,7 +273,6 @@ async def get_username(user_id: int):
 async def StatusChanger():
     await client.wait_until_ready()
     while not client.is_closed():
-        # display 3 first users in the leaderboard
         leaderboard = database.getLeaderboard()
         status = ""
         for i in range(min(3, len(leaderboard))):
@@ -287,11 +281,10 @@ async def StatusChanger():
         await client.change_presence(activity=discord.Game(name=status))
         await asyncio.sleep(1)
 
-StatusChangerTask = client.loop.create_task(StatusChanger())
-
 if __name__ == "__main__":
-    database = database("questions.db")
+    database = database("quest-user.db")
     database.createTable()
-    logDB=LogCommandDB("logs.db")
+    logDB=LogCommandDB("log.db")
     logDB.createTable()
+    StatusChangerTask = client.loop.create_task(StatusChanger())
     client.run(discordBotToken)
