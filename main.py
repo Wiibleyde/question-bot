@@ -11,9 +11,7 @@ import discord
 import sqlite3
 import asyncio
 import datetime
-import time
 import json
-import requests
 
 commandList = ["help", "question", "answer", "leaderboard", "addpoints", "removepoints"]
 
