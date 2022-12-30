@@ -3,7 +3,7 @@
 discordBotToken = "MTA1Njg4MDEzMTgzNjIzMTc1MQ.GrH7J6.tEfOxOCllo2cB89LJKF3A1Yq9vH6Z--1o2-7tM"
 moderatorID = [461807010086780930, 374173210519928832,280804426376151041]
 commandPrefix = "<"
-channelQuestionID = 1058101751120674967
+channelQuestionID = 1058408613527437363
 timeleft = 30 # in minutes
 # =================================================================================================================================================================
 
@@ -219,13 +219,25 @@ async def on_message(message):
             if command == "question" and message.author.id in moderatorID:
                 messageArgs = message.content[1:]
                 question = messageArgs.split("\"")[1]
+                if question == "":
+                    await message.channel.send("La question n'est pas valide !")
+                    await message.add_reaction("❌")
+                    return
                 answers = messageArgs.split("\"")[3].split(";")
-                correct_answer = int(messageArgs.split("\"")[4])
+                if len(answers) < 2:
+                    await message.channel.send("Il n'y a pas assez de réponses !")
+                    await message.add_reaction("❌")
+                    return
+                correct_answer = int(messageArgs.split("\"")[4])-1
+                if correct_answer > len(answers) or correct_answer < 0:
+                    await message.channel.send("La réponse correcte n'est pas valide !")
+                    await message.add_reaction("❌")
+                    return
                 database.addQuestion(question, answers, correct_answer)
                 embed = discord.Embed(title="Question", description=question, color=0x00ff00)
                 for i in range(len(answers)):
-                    embed.add_field(name=f"Réponse n°{i}", value=answers[i], inline=False)
-                embed.set_footer(text=f"Répondez avec le {commandPrefix}answer <numéro de réponse> en {timeleft} de minutes")
+                    embed.add_field(name=f"Réponse n°{i+1}", value=answers[i], inline=False)
+                embed.set_footer(text=f"Répondez avec le {commandPrefix}answer <numéro de réponse> en moins de {timeleft} minutes")
                 msg = await client.get_channel(channelQuestionID).send(embed=embed)
                 await message.add_reaction("✅")
             elif command == "question":
@@ -237,7 +249,7 @@ async def on_message(message):
                     await message.add_reaction("❌")
                 else:
                     messageArgs = message.content[1:]
-                    answer = int(messageArgs.split(" ")[1])
+                    answer = int(messageArgs.split(" ")[1])-1
                     question = database.getQuestions()[-1]
                     if answer == question[3]:
                         pointsEarned = calcPoint(question[0])
