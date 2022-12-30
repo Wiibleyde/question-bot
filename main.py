@@ -258,7 +258,7 @@ async def on_message(message):
                         database.addRightAnswerToUser(message.author.id, question[0])
                         database.addQuestionToUser(message.author.id, question[0])
                     else:
-                        await message.author.send(f"Mauvaise réponse, la bonne réponse était la réponse n°{question[3]}")
+                        await message.author.send(f"Mauvaise réponse, la bonne réponse était la réponse n°{question[3]+1}")
                         await message.add_reaction("✅")
                         database.addWrongAnswerToUser(message.author.id, question[0])
                         database.addQuestionToUser(message.author.id, question[0])
