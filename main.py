@@ -1,10 +1,10 @@
 # =================================================================================================================================================================
 # Configuration
-discordBotToken = "MTA1Njg4MDEzMTgzNjIzMTc1MQ.GrH7J6.tEfOxOCllo2cB89LJKF3A1Yq9vH6Z--1o2-7tM"
-moderatorID = [461807010086780930, 374173210519928832,280804426376151041,343306415496101888,367657384782331904,318814150967164930,138691758035828736,616969786718683167,777137175522443274,77578250329745001,232518184308178944,686284158414487688,552224631671619585,359784511988301824,95185632015417344]
-commandPrefix = "?"
-channelQuestionID = 1058101751120674967
-timeleft = 50 # in minutes
+# discordBotToken = "MTA1Njg4MDEzMTgzNjIzMTc1MQ.GrH7J6.tEfOxOCllo2cB89LJKF3A1Yq9vH6Z--1o2-7tM"
+# moderatorID = [461807010086780930, 374173210519928832,280804426376151041,343306415496101888,367657384782331904,318814150967164930,138691758035828736,616969786718683167,777137175522443274,77578250329745001,232518184308178944,686284158414487688,552224631671619585,359784511988301824,95185632015417344]
+# commandPrefix = "?"
+# channelQuestionID = 1058101751120674967
+# timeleft = 50 # in minutes
 # =================================================================================================================================================================
 
 import discord
@@ -197,6 +197,39 @@ class LogCommandDB:
             c.execute("SELECT * FROM logs WHERE command=? AND user=? AND date BETWEEN ? AND ?", (command, user, date1, date2))
             return c.fetchall()
 
+class Config:
+    def __init__(self, fileName):
+        self.fileName = fileName
+
+    def loadConfig(self):
+        with open(self.fileName) as json_file:
+            return json.load(json_file)
+
+    def getConfigItem(self, item):
+        with open(self.fileName) as json_file:
+            return json.load(json_file)[item]
+
+    def setConfigItem(self, item, value):
+        with open(self.fileName) as json_file:
+            data = json.load(json_file)
+            data[item] = value
+        with open(self.fileName, "w") as json_file:
+            json.dump(data, json_file)
+
+    def addConfigItem(self, item, value):
+        with open(self.fileName) as json_file:
+            data = json.load(json_file)
+            data[item] = value
+        with open(self.fileName, "w") as json_file:
+            json.dump(data, json_file)
+
+    def removeConfigItem(self, item):
+        with open(self.fileName) as json_file:
+            data = json.load(json_file)
+            del data[item]
+        with open(self.fileName, "w") as json_file:
+            json.dump(data, json_file)
+            
 client = discord.Client()
 
 @client.event
@@ -345,6 +378,15 @@ async def StatusChanger():
         status = status[:-2]
         await client.change_presence(activity=discord.Game(name=status))
         await asyncio.sleep(3)
+
+def loadConfigToVar():
+    global discordBotToken, channelQuestionID, moderatorID, commandPrefix, timeleft
+    ObjConfig = Config('config.json')
+    discordBotToken = ObjConfig.loadConfig()['Bot Info']['Token']
+    channelQuestionID = ObjConfig.loadConfig()['Server Information']['QuestionChannel']
+    moderatorID = ObjConfig.loadConfig()['ModeratorList']
+    commandPrefix = ObjConfig.loadConfig()['Bot Info']['Prefix']
+    timeleft = ObjConfig.loadConfig()['Server Information']['Timeleft']
 
 if __name__ == "__main__":
     database = mainDB("quest-user.db")
