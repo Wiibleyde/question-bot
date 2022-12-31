@@ -394,4 +394,5 @@ if __name__ == "__main__":
     logDB=LogCommandDB("log.db")
     logDB.createTable()
     StatusChangerTask = client.loop.create_task(StatusChanger())
+    loadConfigToVar()
     client.run(discordBotToken)
