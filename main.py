@@ -4,7 +4,7 @@ import asyncio
 import datetime
 import json
 
-commandList = ["help", "question", "answer", "leaderboard", "addpoints", "removepoints"]
+commandList = ["help", "question", "answer", "leaderboard", "addpoints", "removepoints", "maintenance"]
 
 class mainDB:
     def __init__(self, fileName):
@@ -234,6 +234,14 @@ async def on_ready():
 async def on_message(message):
     if message.content.startswith(commandPrefix):
         command = message.content[1:].split(" ")[0]
+        maintenance = ObjConfig.getConfigItem("maintenance")
+        if maintenance == True and message.author.id not in moderatorID:
+            await message.channel.send("Le bot est en maintenance !")
+            await message.add_reaction("❌")
+            return
+        if maintenance == True and message.author.id in moderatorID:
+            await message.channel.send("Le bot est en maintenance !")
+            await message.add_reaction("⚠")
         if command not in commandList:
             await message.channel.send("Invalid command")
         else:
@@ -343,6 +351,20 @@ async def on_message(message):
                     embed.add_field(name=f"{commandPrefix}addpoints <user_id> <nombre de points>", value="Ajoute des points à un utilisateur", inline=False)
                     embed.add_field(name=f"{commandPrefix}removepoints <user_id> <nombre de points>", value="Retire des points à un utilisateur", inline=False)
                 await message.channel.send(embed=embed)
+            elif command == "maintenance" and message.author.id in moderatorID:
+                maintenance = ObjConfig.getConfigItem('maintenance')
+                if maintenance == "True":
+                    ObjConfig.setConfigItem('maintenance', 'False')
+                    await message.channel.send("Le mode maintenance est désormais désactivé !")
+                else:
+                    ObjConfig.setConfigItem('maintenance', 'True')
+                    await message.channel.send("Le mode maintenance est désormais activé !")
+            elif command == "maintenance":
+                await message.channel.send("Vous n'avez pas les permissions pour utiliser cette commande !")
+                await message.add_reaction("❌")
+            else:
+                await message.channel.send("Commande inconnue !")
+                await message.add_reaction("❌")
                             
 def calcPoint(question_id):
     question = database.getQuestion(question_id)
@@ -362,6 +384,11 @@ async def get_username(user_id: int):
 async def StatusChanger():
     await client.wait_until_ready()
     while not client.is_closed():
+        maintenance = ObjConfig.getConfigItem('maintenance')
+        if maintenance == "True":
+            await client.change_presence(activity=discord.Game(name="Maintenance"))
+            await asyncio.sleep(3)
+            continue
         leaderboard = database.getLeaderboard()
         status = ""
         for i in range(min(3, len(leaderboard))):
@@ -371,13 +398,14 @@ async def StatusChanger():
         await asyncio.sleep(3)
 
 def loadConfigToVar():
-    global discordBotToken, channelQuestionID, moderatorID, commandPrefix, timeleft
+    global discordBotToken, channelQuestionID, moderatorID, commandPrefix, timeleft, maintenance, ObjConfig
     ObjConfig = Config('config.json')
     discordBotToken = ObjConfig.loadConfig()['Bot Info']['Token']
     channelQuestionID = ObjConfig.loadConfig()['Server Information']['QuestionChannel']
     moderatorID = ObjConfig.loadConfig()['ModeratorList']
     commandPrefix = ObjConfig.loadConfig()['Bot Info']['Prefix']
     timeleft = ObjConfig.loadConfig()['Server Information']['Timeleft']
+    maintenance = ObjConfig.setConfigItem('maintenance', 'False')
 
 if __name__ == "__main__":
     database = mainDB("quest-user.db")
