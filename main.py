@@ -350,6 +350,7 @@ async def on_message(message):
                     embed.add_field(name=f"{commandPrefix}question \"<question>\" \"<réponse 1>;<réponse 2>;...\" <numéro de la bonne réponse>", value="Pose une question", inline=False)
                     embed.add_field(name=f"{commandPrefix}addpoints <user_id> <nombre de points>", value="Ajoute des points à un utilisateur", inline=False)
                     embed.add_field(name=f"{commandPrefix}removepoints <user_id> <nombre de points>", value="Retire des points à un utilisateur", inline=False)
+                    embed.add_field(name=f"{commandPrefix}maintenance", value="Active/désactive le mode maintenance", inline=False)
                 await message.channel.send(embed=embed)
             elif command == "maintenance" and message.author.id in moderatorID:
                 maintenance = ObjConfig.getConfigItem('maintenance')
