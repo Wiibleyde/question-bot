@@ -3,6 +3,9 @@ import sqlite3
 import asyncio
 import datetime
 import json
+import sys
+import os
+import time
 
 commandList = ["help", "question", "answer", "leaderboard", "addpoints", "removepoints", "maintenance"]
 
@@ -357,6 +360,7 @@ async def on_message(message):
                 if maintenance == "True":
                     ObjConfig.setConfigItem('maintenance', 'False')
                     await message.channel.send("Le mode maintenance est désormais désactivé !")
+                    # restartProgram()
                 else:
                     ObjConfig.setConfigItem('maintenance', 'True')
                     await message.channel.send("Le mode maintenance est désormais activé !")
@@ -398,6 +402,17 @@ async def StatusChanger():
         await client.change_presence(activity=discord.Game(name=status))
         await asyncio.sleep(3)
 
+# def finishMaintenance():
+#     maintenance = ObjConfig.getConfigItem('maintenance')
+#     if maintenance == "True":
+#         ObjConfig.setConfigItem('maintenance', 'False')
+#         print("Le mode maintenance est désormais désactivé !")
+#         restartProgram()
+
+# def restartProgram():
+#     python = sys.executable
+#     os.execl(python, python, * sys.argv)
+
 def loadConfigToVar():
     global discordBotToken, channelQuestionID, moderatorID, commandPrefix, timeleft, maintenance, ObjConfig
     ObjConfig = Config('config.json')
@@ -416,3 +431,4 @@ if __name__ == "__main__":
     StatusChangerTask = client.loop.create_task(StatusChanger())
     loadConfigToVar()
     client.run(discordBotToken)
+
