@@ -271,7 +271,7 @@ async def on_message(message):
                 for i in range(len(answers)):
                     embed.add_field(name=f"Réponse n°{i+1}", value=answers[i], inline=False)
                 embed.set_footer(text=f"Répondez avec le {commandPrefix}answer <numéro de réponse> en moins de {timeleft} minutes")
-                msg = await client.get_channel(channelQuestionID).send(embed=embed)
+                await client.get_channel(channelQuestionID).send(embed=embed)
                 await message.add_reaction("✅")
             elif command == "question":
                 await message.channel.send("Vous n'avez pas les permissions pour utiliser cette commande !")
@@ -402,17 +402,6 @@ async def StatusChanger():
         await client.change_presence(activity=discord.Game(name=status))
         await asyncio.sleep(3)
 
-# def finishMaintenance():
-#     maintenance = ObjConfig.getConfigItem('maintenance')
-#     if maintenance == "True":
-#         ObjConfig.setConfigItem('maintenance', 'False')
-#         print("Le mode maintenance est désormais désactivé !")
-#         restartProgram()
-
-# def restartProgram():
-#     python = sys.executable
-#     os.execl(python, python, * sys.argv)
-
 def loadConfigToVar():
     global discordBotToken, channelQuestionID, moderatorID, commandPrefix, timeleft, maintenance, ObjConfig
     ObjConfig = Config('config.json')
@@ -430,5 +419,12 @@ if __name__ == "__main__":
     logDB.createTable()
     StatusChangerTask = client.loop.create_task(StatusChanger())
     loadConfigToVar()
+    print("Configuration chargée !")
+    print(f"Token : {discordBotToken}")
+    print(f"Channel Question ID : {channelQuestionID}")
+    print(f"Moderator ID : {moderatorID}")
+    print(f"Command Prefix : {commandPrefix}")
+    print(f"Timeleft : {timeleft}")
+    print(f"Maintenance : {maintenance}")
     client.run(discordBotToken)
 
