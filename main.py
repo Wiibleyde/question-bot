@@ -3,9 +3,6 @@ import sqlite3
 import asyncio
 import datetime
 import json
-import sys
-import os
-import time
 
 commandList = ["help", "question", "answer", "leaderboard", "addpoints", "removepoints", "maintenance"]
 
@@ -417,7 +414,8 @@ def loadConfigToVar():
     commandPrefix = ObjConfig.loadConfig()['Bot Info']['Prefix']
     timeleft = ObjConfig.loadConfig()['Server Information']['Timeleft']
     serverID = ObjConfig.loadConfig()['Server Information']['ServerID']
-    maintenance = ObjConfig.setConfigItem('maintenance', 'False')
+    # maintenance = ObjConfig.setConfigItem('maintenance', 'False')
+    maintenance = ObjConfig.getConfigItem('maintenance')
 
 if __name__ == "__main__":
     database = mainDB("quest-user.db")
@@ -435,4 +433,3 @@ if __name__ == "__main__":
     print(f"Server ID : {serverID}")
     print(f"Maintenance : {maintenance}")
     client.run(discordBotToken)
-
