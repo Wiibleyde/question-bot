@@ -271,7 +271,9 @@ async def on_message(message):
                 for i in range(len(answers)):
                     embed.add_field(name=f"Réponse n°{i+1}", value=answers[i], inline=False)
                 embed.set_footer(text=f"Répondez avec le {commandPrefix}answer <numéro de réponse> en moins de {timeleft} minutes")
-                await client.get_channel(channelQuestionID).send(embed=embed)
+                # server = client.get_guild(int(serverID))
+                channel = client.get_channel(int(channelQuestionID))
+                await channel.send(embed=embed)
                 await message.add_reaction("✅")
             elif command == "question":
                 await message.channel.send("Vous n'avez pas les permissions pour utiliser cette commande !")
@@ -403,13 +405,14 @@ async def StatusChanger():
         await asyncio.sleep(3)
 
 def loadConfigToVar():
-    global discordBotToken, channelQuestionID, moderatorID, commandPrefix, timeleft, maintenance, ObjConfig
+    global discordBotToken, channelQuestionID, moderatorID, commandPrefix, timeleft, maintenance, ObjConfig, serverID
     ObjConfig = Config('config.json')
     discordBotToken = ObjConfig.loadConfig()['Bot Info']['Token']
     channelQuestionID = ObjConfig.loadConfig()['Server Information']['QuestionChannel']
     moderatorID = ObjConfig.loadConfig()['ModeratorList']
     commandPrefix = ObjConfig.loadConfig()['Bot Info']['Prefix']
     timeleft = ObjConfig.loadConfig()['Server Information']['Timeleft']
+    serverID = ObjConfig.loadConfig()['Server Information']['ServerID']
     maintenance = ObjConfig.setConfigItem('maintenance', 'False')
 
 if __name__ == "__main__":
@@ -425,6 +428,7 @@ if __name__ == "__main__":
     print(f"Moderator ID : {moderatorID}")
     print(f"Command Prefix : {commandPrefix}")
     print(f"Timeleft : {timeleft}")
+    print(f"Server ID : {serverID}")
     print(f"Maintenance : {maintenance}")
     client.run(discordBotToken)
 
