@@ -247,6 +247,7 @@ async def on_message(message):
                 await message.channel.send("Invalid command")
             else:
                 logDB.addLog(command, message.author.name)
+
                 if command == "question" and message.author.id in moderatorID:
                     messageArgs = message.content[1:]
                     question = messageArgs.split("\"")[1]
@@ -272,9 +273,11 @@ async def on_message(message):
                     channel = client.get_channel(int(channelQuestionID))
                     await channel.send(embed=embed)
                     await message.add_reaction("✅")
+
                 elif command == "question":
                     await message.channel.send("Vous n'avez pas les permissions pour utiliser cette commande !")
                     await message.add_reaction("❌")
+
                 elif command == "answer":
                     if database.AlreadyAnswered(message.author.id, database.getQuestions()[-1][0]):
                         await message.author.send("Vous avez déjà répondu à cette question !")
@@ -300,12 +303,14 @@ async def on_message(message):
                             database.addWrongAnswerToUser(message.author.id, question[0])
                             database.addQuestionToUser(message.author.id, question[0])
                     await message.delete()
+
                 elif command == "leaderboard":
                     leaderboard = database.getLeaderboard()
                     embed = discord.Embed(title="Leaderboard", color=0x00ff00)
                     for i in range(min(10, len(leaderboard))):
                         embed.add_field(name=f"{int(i)+1}. {await get_username(leaderboard[i][0])}", value=f"{leaderboard[i][1]} points", inline=False)
                     await message.channel.send(embed=embed)
+                
                 elif command == "addpoints" and message.author.id in moderatorID:
                     messageArgs = message.content[1:]
                     user = messageArgs.split(" ")[1]
@@ -321,11 +326,13 @@ async def on_message(message):
                     else:
                         database.addPointsToUser(user, points)
                         await message.add_reaction("✅")
+                
                 elif command == "addpoints":
                     print(message.author.id)
                     print(moderatorID)
                     await message.channel.send("Vous n'avez pas les permissions pour utiliser cette commande !")
                     await message.add_reaction("❌")
+                
                 elif command == "removepoints" and message.author.id in moderatorID:
                     messageArgs = message.content[1:]
                     user = messageArgs.split(" ")[1]
@@ -341,9 +348,11 @@ async def on_message(message):
                     else:
                         database.removePointsToUser(user, points)
                         await message.add_reaction("✅")
+                
                 elif command == "removepoints":
                     await message.channel.send("Vous n'avez pas les permissions pour utiliser cette commande !")
                     await message.add_reaction("❌")
+                
                 elif command == "help":
                     embed = discord.Embed(title="Help", color=0x00ff00)
                     embed.add_field(name=f"{commandPrefix}answer <numéro de la réponse>", value="Répond à la question", inline=False)
@@ -354,18 +363,20 @@ async def on_message(message):
                         embed.add_field(name=f"{commandPrefix}removepoints <user_id> <nombre de points>", value="Retire des points à un utilisateur", inline=False)
                         embed.add_field(name=f"{commandPrefix}maintenance", value="Active/désactive le mode maintenance", inline=False)
                     await message.channel.send(embed=embed)
+                
                 elif command == "maintenance" and message.author.id in moderatorID:
                     maintenance = ObjConfig.getConfigItem('maintenance')
                     if maintenance == "True":
                         ObjConfig.setConfigItem('maintenance', 'False')
                         await message.channel.send("Le mode maintenance est désormais désactivé !")
-                        # restartProgram()
                     else:
                         ObjConfig.setConfigItem('maintenance', 'True')
                         await message.channel.send("Le mode maintenance est désormais activé !")
+                
                 elif command == "maintenance":
                     await message.channel.send("Vous n'avez pas les permissions pour utiliser cette commande !")
                     await message.add_reaction("❌")
+                
                 else:
                     await message.channel.send("Commande inconnue !")
                     await message.add_reaction("❌")
