@@ -2,14 +2,10 @@ import discord
 from discord import app_commands
 from discord.ext import commands, tasks
 import json
-import requests
 import datetime
 import sqlite3
 import os
-import asyncio
-import random
-
-commandList = ["help", "question", "answer", "leaderboard", "addpoints", "removepoints", "maintenance"]
+import sys
 
 class mainDB:
     def __init__(self, fileName):
@@ -196,6 +192,15 @@ class LogCommandDB:
 class Config:
     def __init__(self, fileName):
         self.fileName = fileName
+        if not os.path.isfile(self.fileName):
+            self.createConfig()
+            print("Config file created")
+            print("Please fill in the config file and restart the bot")
+            sys.exit()
+
+    def createConfig(self):
+        with open(self.fileName, "w") as json_file:
+            json.dump({"Bot Info": {"Token": "", "Prefix": "!"}, "ModeratorList": [], "Server Information": {"QuestionChannel": "", "Timeleft": 50}, "maintenance": "False"}, json_file)
 
     def loadConfig(self):
         with open(self.fileName) as json_file:
@@ -241,7 +246,7 @@ async def on_ready():
 
 @bot.tree.command(name="question", description="Pose une question à la communauté")
 async def question(interaction: discord.Interaction, question: str, rightanswer: int, reponse1: str, reponse2: str, reponse3: str = None, reponse4: str = None):
-    if ObjConfig.getConfigItem("maintenace") == "True":
+    if ObjConfig.getConfigItem("maintenance") == "True":
         await interaction.user.send("Le bot est en maintenance !")
         return
     if interaction.user.id not in moderatorID:
@@ -262,7 +267,7 @@ async def question(interaction: discord.Interaction, question: str, rightanswer:
 
 @bot.tree.command(name="reponse", description="Répond à une question")
 async def reponse(interaction: discord.Interaction, reponse: int):
-    if ObjConfig.getConfigItem("maintenace") == "True":
+    if ObjConfig.getConfigItem("maintenance") == "True":
         await interaction.user.send("Le bot est en maintenance !")
         return
     if database.AlreadyAnswered(interaction.user.id, database.getQuestions()[-1][0]):
@@ -300,6 +305,7 @@ async def addpoints(interaction: discord.Interaction, user: discord.User, points
             await interaction.user.send(f"Vous avez ajouté {points} points à {user.name}")
     else:
         await interaction.user.send("Vous n'avez pas la permission d'utiliser cette commande !")
+    await interaction.response.send_message("Commande envoyée ! (résultat en mp)")
 
 @bot.tree.command(name="removepoints", description="Retire des points à un utilisateur")
 async def removepoints(interaction: discord.Interaction, user: discord.User, points: int):
@@ -311,18 +317,20 @@ async def removepoints(interaction: discord.Interaction, user: discord.User, poi
             await interaction.user.send(f"Vous avez retiré {points} points à {user.name}")
     else:
         await interaction.user.send("Vous n'avez pas la permission d'utiliser cette commande !")
+    await interaction.response.send_message("Commande envoyée ! (résultat en mp)")
 
-@bot.tree.command(name="maintenace", description="Active/Désactive la maintenance")
-async def maintenace(interaction: discord.Interaction, onoff: bool):
+@bot.tree.command(name="maintenance", description="Active/Désactive la maintenance")
+async def maintenance(interaction: discord.Interaction, onoff: bool):
     if interaction.user.id in moderatorID:
         if onoff:
-            ObjConfig.setConfigItem("maintenace", "True")
+            ObjConfig.setConfigItem("maintenance", "True")
             await interaction.user.send("La maintenance est activée !")
         else:
-            Config.setConfigItem("maintenace", "False")
+            Config.setConfigItem("maintenance", "False")
             await interaction.user.send("La maintenance est désactivée !")
     else:
         await interaction.user.send("Vous n'avez pas la permission d'utiliser cette commande !")
+    await interaction.response.send_message("Commande envoyée ! (résultat en mp)")
                                
 def calcPoint(question_id):
     question = database.getQuestion(question_id)
@@ -331,9 +339,6 @@ def calcPoint(question_id):
     else:
         date = datetime.datetime.strptime(question[4], "%Y-%m-%d %H:%M:%S.%f")
         return 50 - int((datetime.datetime.now() - date).total_seconds()/60)
-
-def getMessageById(message_id):
-    return bot.get_channel(channelQuestionID).fetch_message(message_id)
 
 async def get_username(user_id: int):
     user = await bot.fetch_user(user_id)
@@ -345,15 +350,12 @@ async def StatusChanger():
     await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=f"{await get_username(first[0])} ({first[1]} points)"))
 
 def loadConfigToVar():
-    global discordBotToken, channelQuestionID, moderatorID, commandPrefix, timeleft, maintenance, ObjConfig
+    global discordBotToken, moderatorID, commandPrefix, timeleft, maintenance, ObjConfig
     ObjConfig = Config('conf.json')
     discordBotToken = ObjConfig.loadConfig()['Bot Info']['Token']
-    channelQuestionID = ObjConfig.loadConfig()['Server Information']['QuestionChannel']
     moderatorID = ObjConfig.loadConfig()['ModeratorList']
     commandPrefix = ObjConfig.loadConfig()['Bot Info']['Prefix']
     timeleft = ObjConfig.loadConfig()['Server Information']['Timeleft']
-    serverID = ObjConfig.loadConfig()['Server Information']['ServerID']
-    # maintenance = ObjConfig.setConfigItem('maintenance', 'False')
     maintenance = ObjConfig.getConfigItem('maintenance')
 
 if __name__ == "__main__":
@@ -364,11 +366,8 @@ if __name__ == "__main__":
     loadConfigToVar()
     print("Configuration chargée !")
     print(f"Token : {discordBotToken}")
-    print(f"Channel Question ID : {channelQuestionID}")
     print(f"Moderator ID : {moderatorID}")
     print(f"Command Prefix : {commandPrefix}")
     print(f"Timeleft : {timeleft}")
-    print(f"Server ID : {serverID}")
     print(f"Maintenance : {maintenance}")
     bot.run(discordBotToken)
-
