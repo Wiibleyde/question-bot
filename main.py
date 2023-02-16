@@ -246,6 +246,7 @@ async def on_ready():
 
 @bot.tree.command(name="question", description="Pose une question à la communauté")
 async def question(interaction: discord.Interaction, question: str, rightanswer: int, reponse1: str, reponse2: str, reponse3: str = None, reponse4: str = None):
+    logDB.addLog("question", interaction.user.id)
     if ObjConfig.getConfigItem("maintenance") == "True":
         await interaction.user.send("Le bot est en maintenance !")
         return
@@ -267,6 +268,7 @@ async def question(interaction: discord.Interaction, question: str, rightanswer:
 
 @bot.tree.command(name="reponse", description="Répond à une question")
 async def reponse(interaction: discord.Interaction, reponse: int):
+    logDB.addLog("reponse", interaction.user.id)
     if ObjConfig.getConfigItem("maintenance") == "True":
         await interaction.user.send("Le bot est en maintenance !")
         return
@@ -289,6 +291,7 @@ async def reponse(interaction: discord.Interaction, reponse: int):
 
 @bot.tree.command(name="classement", description="Affiche le classement")
 async def classement(interaction: discord.Interaction):
+    logDB.addLog("classement", interaction.user.id)
     leaderboard = database.getLeaderboard()
     embed = discord.Embed(title="Leaderboard", color=0x00ff00)
     for i in range(min(10, len(leaderboard))):
@@ -297,6 +300,7 @@ async def classement(interaction: discord.Interaction):
 
 @bot.tree.command(name="addpoints", description="Ajoute des points à un utilisateur")
 async def addpoints(interaction: discord.Interaction, user: discord.User, points: int):
+    logDB.addLog("addpoints", interaction.user.id)
     if interaction.user.id in moderatorID:
         if database.getUser(user.id) == None:
             await interaction.user.send("Cet utilisateur n'existe pas ou n'a pas encore répondu à une question !")
@@ -309,6 +313,7 @@ async def addpoints(interaction: discord.Interaction, user: discord.User, points
 
 @bot.tree.command(name="removepoints", description="Retire des points à un utilisateur")
 async def removepoints(interaction: discord.Interaction, user: discord.User, points: int):
+    logDB.addLog("removepoints", interaction.user.id)
     if interaction.user.id in moderatorID:
         if database.getUser(user.id) == None:
             await interaction.user.send("Cet utilisateur n'existe pas ou n'a pas encore répondu à une question !")
@@ -321,6 +326,7 @@ async def removepoints(interaction: discord.Interaction, user: discord.User, poi
 
 @bot.tree.command(name="maintenance", description="Active/Désactive la maintenance")
 async def maintenance(interaction: discord.Interaction, onoff: bool):
+    logDB.addLog("maintenance", interaction.user.id)
     if interaction.user.id in moderatorID:
         if onoff:
             ObjConfig.setConfigItem("maintenance", "True")
