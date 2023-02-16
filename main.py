@@ -7,7 +7,11 @@ import datetime
 import sqlite3
 import os
 import asyncio
-import random
+import datetime
+import json
+import sys
+import os
+import time
 
 commandList = ["help", "question", "answer", "leaderboard", "addpoints", "removepoints", "maintenance"]
 
@@ -239,91 +243,144 @@ async def on_ready():
     except Exception as e:
         print(f"Failed to sync commands: {e}")
 
-@bot.tree.command(name="question", description="Pose une question à la communauté")
-async def question(interaction: discord.Interaction, question: str, rightanswer: int, reponse1: str, reponse2: str, reponse3: str = None, reponse4: str = None):
-    if ObjConfig.getConfigItem("maintenace") == "True":
-        await interaction.user.send("Le bot est en maintenance !")
-        return
-    if interaction.user.id not in moderatorID:
-        await interaction.response.send_message("Vous n'avez pas la permission d'utiliser cette commande", ephemeral=True)
-        return
-    database.addQuestion(question, [reponse1, reponse2, reponse3, reponse4], rightanswer)
-    embed = discord.Embed(title="Question", description=question, color=0x00ff00)
-    embed.add_field(name="Réponse 1", value=reponse1, inline=False)
-    embed.add_field(name="Réponse 2", value=reponse2, inline=False)
-    if reponse3 != None:
-        embed.add_field(name="Réponse 3", value=reponse3, inline=False)
-    if reponse4 != None:
-        embed.add_field(name="Réponse 4", value=reponse4, inline=False)
-    if reponse3 == None and reponse4 != None:
-        embed.add_field(name="Réponse 3", value="Réponse 3", inline=False)
-    embed.set_footer(text=f"Question posée par {interaction.user.name}")
-    await interaction.response.send_message(embed=embed)
-
-@bot.tree.command(name="reponse", description="Répond à une question")
-async def reponse(interaction: discord.Interaction, reponse: int):
-    if ObjConfig.getConfigItem("maintenace") == "True":
-        await interaction.user.send("Le bot est en maintenance !")
-        return
-    if database.AlreadyAnswered(interaction.user.id, database.getQuestions()[-1][0]):
-        await interaction.user.send("Vous avez déjà répondu à cette question !")
-    else:
-        question = database.getQuestions()[-1]
-        rightAnswer = question[3]
-        if reponse == rightAnswer:
-            pointsEarned = calcPoint(question[0])
-            database.addRightAnswerToUser(interaction.user.id, question[0])
-            database.addQuestionToUser(interaction.user.id, question[0])
-            await interaction.user.send(f"Bonne réponse ! Vous avez gagné {pointsEarned} points !")
+@client.event
+async def on_message(message):
+    if message.content.startswith(commandPrefix):
+        command = message.content[1:].split(" ")[0]
+        maintenance = ObjConfig.getConfigItem("maintenance")
+        if maintenance == True and message.author.id not in moderatorID:
+            await message.channel.send("Le bot est en maintenance !")
+            await message.add_reaction("❌")
+            return
+        if maintenance == True and message.author.id in moderatorID:
+            await message.channel.send("Le bot est en maintenance !")
+            await message.add_reaction("⚠")
+        if command not in commandList:
+            await message.channel.send("Invalid command")
         else:
-            database.addWrongAnswerToUser(interaction.user.id, question[0])
-            database.addQuestionToUser(interaction.user.id, question[0])
-            await interaction.user.send(f"Mauvaise réponse ! La bonne réponse était {question[3]}")
-    await interaction.response.send_message("Réponse envoyée !")
-    await interaction.delete_original_response()
-
-@bot.tree.command(name="classement", description="Affiche le classement")
-async def classement(interaction: discord.Interaction):
-    leaderboard = database.getLeaderboard()
-    embed = discord.Embed(title="Leaderboard", color=0x00ff00)
-    for i in range(min(10, len(leaderboard))):
-        embed.add_field(name=f"{int(i)+1}. {await get_username(leaderboard[i][0])}", value=f"{leaderboard[i][1]} points", inline=False)
-    await interaction.response.send_message(embed=embed)
-
-@bot.tree.command(name="addpoints", description="Ajoute des points à un utilisateur")
-async def addpoints(interaction: discord.Interaction, user: discord.User, points: int):
-    if interaction.user.id in moderatorID:
-        if database.getUser(user.id) == None:
-            await interaction.user.send("Cet utilisateur n'existe pas ou n'a pas encore répondu à une question !")
-        else:
-            database.addPointsToUser(user.id, points)
-            await interaction.user.send(f"Vous avez ajouté {points} points à {user.name}")
-    else:
-        await interaction.user.send("Vous n'avez pas la permission d'utiliser cette commande !")
-
-@bot.tree.command(name="removepoints", description="Retire des points à un utilisateur")
-async def removepoints(interaction: discord.Interaction, user: discord.User, points: int):
-    if interaction.user.id in moderatorID:
-        if database.getUser(user.id) == None:
-            await interaction.user.send("Cet utilisateur n'existe pas ou n'a pas encore répondu à une question !")
-        else:
-            database.removePointsToUser(user.id, points)
-            await interaction.user.send(f"Vous avez retiré {points} points à {user.name}")
-    else:
-        await interaction.user.send("Vous n'avez pas la permission d'utiliser cette commande !")
-
-@bot.tree.command(name="maintenace", description="Active/Désactive la maintenance")
-async def maintenace(interaction: discord.Interaction, onoff: bool):
-    if interaction.user.id in moderatorID:
-        if onoff:
-            ObjConfig.setConfigItem("maintenace", "True")
-            await interaction.user.send("La maintenance est activée !")
-        else:
-            Config.setConfigItem("maintenace", "False")
-            await interaction.user.send("La maintenance est désactivée !")
-    else:
-        await interaction.user.send("Vous n'avez pas la permission d'utiliser cette commande !")
-                               
+            logDB.addLog(command, message.author.name)
+            if command == "question" and message.author.id in moderatorID:
+                messageArgs = message.content[1:]
+                question = messageArgs.split("\"")[1]
+                if question == "":
+                    await message.channel.send("La question n'est pas valide !")
+                    await message.add_reaction("❌")
+                    return
+                answers = messageArgs.split("\"")[3].split(";")
+                if len(answers) < 2:
+                    await message.channel.send("Il n'y a pas assez de réponses !")
+                    await message.add_reaction("❌")
+                    return
+                correct_answer = int(messageArgs.split("\"")[4])-1
+                if correct_answer > len(answers) or correct_answer < 0:
+                    await message.channel.send("La réponse correcte n'est pas valide !")
+                    await message.add_reaction("❌")
+                    return
+                database.addQuestion(question, answers, correct_answer)
+                embed = discord.Embed(title="Question", description=question, color=0x00ff00)
+                for i in range(len(answers)):
+                    embed.add_field(name=f"Réponse n°{i+1}", value=answers[i], inline=False)
+                embed.set_footer(text=f"Répondez avec le {commandPrefix}answer <numéro de réponse> en moins de {timeleft} minutes")
+                await client.get_channel(channelQuestionID).send(embed=embed)
+                await message.add_reaction("✅")
+            elif command == "question":
+                await message.channel.send("Vous n'avez pas les permissions pour utiliser cette commande !")
+                await message.add_reaction("❌")
+            elif command == "answer":
+                if database.AlreadyAnswered(message.author.id, database.getQuestions()[-1][0]):
+                    await message.author.send("Vous avez déjà répondu à cette question !")
+                    await message.add_reaction("❌")
+                else:
+                    messageArgs = message.content[1:]
+                    try:
+                        answer = int(messageArgs.split(" ")[1])-1
+                    except:
+                        await message.author.send("La réponse n'est pas valide !")
+                        await message.add_reaction("❌")
+                        return
+                    question = database.getQuestions()[-1]
+                    if answer == question[3]:
+                        pointsEarned = calcPoint(question[0])
+                        await message.author.send(f"Bonne réponse ! Vous avez gagné {pointsEarned} points !")
+                        await message.add_reaction("✅")
+                        database.addRightAnswerToUser(message.author.id, question[0])
+                        database.addQuestionToUser(message.author.id, question[0])
+                    else:
+                        await message.author.send(f"Mauvaise réponse, la bonne réponse était la réponse n°{question[3]+1}")
+                        await message.add_reaction("✅")
+                        database.addWrongAnswerToUser(message.author.id, question[0])
+                        database.addQuestionToUser(message.author.id, question[0])
+                await message.delete()
+            elif command == "leaderboard":
+                leaderboard = database.getLeaderboard()
+                embed = discord.Embed(title="Leaderboard", color=0x00ff00)
+                for i in range(min(10, len(leaderboard))):
+                    embed.add_field(name=f"{int(i)+1}. {await get_username(leaderboard[i][0])}", value=f"{leaderboard[i][1]} points", inline=False)
+                await message.channel.send(embed=embed)
+            elif command == "addpoints" and message.author.id in moderatorID:
+                messageArgs = message.content[1:]
+                user = messageArgs.split(" ")[1]
+                try:
+                    points = int(messageArgs.split(" ")[2])
+                except:
+                    await message.channel.send("Le nombre de points n'est pas valide !")
+                    await message.add_reaction("❌")
+                    return
+                if database.getUser(user) == None:
+                    await message.channel.send("Cet utilisateur n'existe pas ou n'a pas encore répondu à une question !")
+                    await message.add_reaction("❌")
+                else:
+                    database.addPointsToUser(user, points)
+                    await message.add_reaction("✅")
+            elif command == "addpoints":
+                print(message.author.id)
+                print(moderatorID)
+                await message.channel.send("Vous n'avez pas les permissions pour utiliser cette commande !")
+                await message.add_reaction("❌")
+            elif command == "removepoints" and message.author.id in moderatorID:
+                messageArgs = message.content[1:]
+                user = messageArgs.split(" ")[1]
+                try:
+                    points = int(messageArgs.split(" ")[2])
+                except:
+                    await message.channel.send("Le nombre de points n'est pas valide !")
+                    await message.add_reaction("❌")
+                    return
+                if database.getUser(user) == None:
+                    await message.channel.send("Cet utilisateur n'existe pas ou n'a pas encore répondu à une question !")
+                    await message.add_reaction("❌")
+                else:
+                    database.removePointsToUser(user, points)
+                    await message.add_reaction("✅")
+            elif command == "removepoints":
+                await message.channel.send("Vous n'avez pas les permissions pour utiliser cette commande !")
+                await message.add_reaction("❌")
+            elif command == "help":
+                embed = discord.Embed(title="Help", color=0x00ff00)
+                embed.add_field(name=f"{commandPrefix}answer <numéro de la réponse>", value="Répond à la question", inline=False)
+                embed.add_field(name=f"{commandPrefix}leaderboard", value="Affiche le leaderboard", inline=False)
+                if message.author.id in moderatorID:
+                    embed.add_field(name=f"{commandPrefix}question \"<question>\" \"<réponse 1>;<réponse 2>;...\" <numéro de la bonne réponse>", value="Pose une question", inline=False)
+                    embed.add_field(name=f"{commandPrefix}addpoints <user_id> <nombre de points>", value="Ajoute des points à un utilisateur", inline=False)
+                    embed.add_field(name=f"{commandPrefix}removepoints <user_id> <nombre de points>", value="Retire des points à un utilisateur", inline=False)
+                    embed.add_field(name=f"{commandPrefix}maintenance", value="Active/désactive le mode maintenance", inline=False)
+                await message.channel.send(embed=embed)
+            elif command == "maintenance" and message.author.id in moderatorID:
+                maintenance = ObjConfig.getConfigItem('maintenance')
+                if maintenance == "True":
+                    ObjConfig.setConfigItem('maintenance', 'False')
+                    await message.channel.send("Le mode maintenance est désormais désactivé !")
+                    # restartProgram()
+                else:
+                    ObjConfig.setConfigItem('maintenance', 'True')
+                    await message.channel.send("Le mode maintenance est désormais activé !")
+            elif command == "maintenance":
+                await message.channel.send("Vous n'avez pas les permissions pour utiliser cette commande !")
+                await message.add_reaction("❌")
+            else:
+                await message.channel.send("Commande inconnue !")
+                await message.add_reaction("❌")
+                            
 def calcPoint(question_id):
     question = database.getQuestion(question_id)
     if question is None:
@@ -333,7 +390,7 @@ def calcPoint(question_id):
         return 50 - int((datetime.datetime.now() - date).total_seconds()/60)
 
 def getMessageById(message_id):
-    return bot.get_channel(channelQuestionID).fetch_message(message_id)
+    return client.get_channel(channelQuestionID).fetch_message(message_id)
 
 async def get_username(user_id: int):
     user = await bot.fetch_user(user_id)
@@ -346,13 +403,15 @@ async def StatusChanger():
 
 def loadConfigToVar():
     global discordBotToken, channelQuestionID, moderatorID, commandPrefix, timeleft, maintenance, ObjConfig
-    ObjConfig = Config('conf.json')
+    ObjConfig = Config('config.json')
     discordBotToken = ObjConfig.loadConfig()['Bot Info']['Token']
     channelQuestionID = ObjConfig.loadConfig()['Server Information']['QuestionChannel']
     moderatorID = ObjConfig.loadConfig()['ModeratorList']
     commandPrefix = ObjConfig.loadConfig()['Bot Info']['Prefix']
     timeleft = ObjConfig.loadConfig()['Server Information']['Timeleft']
-    maintenance = ObjConfig.setConfigItem('maintenance', 'False')
+    serverID = ObjConfig.loadConfig()['Server Information']['ServerID']
+    # maintenance = ObjConfig.setConfigItem('maintenance', 'False')
+    maintenance = ObjConfig.getConfigItem('maintenance')
 
 if __name__ == "__main__":
     database = mainDB("quest-user.db")
@@ -366,6 +425,6 @@ if __name__ == "__main__":
     print(f"Moderator ID : {moderatorID}")
     print(f"Command Prefix : {commandPrefix}")
     print(f"Timeleft : {timeleft}")
+    print(f"Server ID : {serverID}")
     print(f"Maintenance : {maintenance}")
     bot.run(discordBotToken)
-
