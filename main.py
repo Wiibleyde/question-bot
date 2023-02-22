@@ -341,7 +341,7 @@ def calcPoint(question_id):
         return 0
     else:
         date = datetime.datetime.strptime(question[4], "%Y-%m-%d %H:%M:%S.%f")
-        return 50 - int((datetime.datetime.now() - date).total_seconds()/60)
+        return ObjConfig.loadConfig()['Server Information']['Timeleft'] - int((datetime.datetime.now() - date).total_seconds()/60)
 
 async def get_username(user_id: int):
     user = await bot.fetch_user(user_id)
