@@ -250,7 +250,7 @@ async def question(interaction: discord.Interaction, question: str, rightanswer:
     if ObjConfig.getConfigItem("maintenance") == "True":
         await interaction.user.send("Le bot est en maintenance !")
         return
-    if interaction.user.id not in moderatorID:
+    if interaction.user.guild_permissions.administrator == False:
         await interaction.response.send_message("Vous n'avez pas la permission d'utiliser cette commande", ephemeral=True)
         return
     database.addQuestion(question, [reponse1, reponse2, reponse3, reponse4], rightanswer)
@@ -263,7 +263,7 @@ async def question(interaction: discord.Interaction, question: str, rightanswer:
         embed.add_field(name="Réponse 4", value=reponse4, inline=False)
     if reponse3 == None and reponse4 != None:
         embed.add_field(name="Réponse 3", value="Réponse 3", inline=False)
-    embed.set_footer(text=f"Question posée par {interaction.user.name}")
+    embed.set_footer(text=f"Question posée par {interaction.user.name}, pour répondre : /reponse")
     await interaction.response.send_message(embed=embed)
 
 @bot.tree.command(name="reponse", description="Répond à une question")
@@ -286,8 +286,7 @@ async def reponse(interaction: discord.Interaction, reponse: int):
             database.addWrongAnswerToUser(interaction.user.id, question[0])
             database.addQuestionToUser(interaction.user.id, question[0])
             await interaction.user.send(f"Mauvaise réponse ! La bonne réponse était {question[3]}")
-    await interaction.response.send_message("Réponse envoyée !")
-    await interaction.delete_original_response()
+    await interaction.response.send_message("Réponse envoyée !", ephemeral=True)
 
 @bot.tree.command(name="classement", description="Affiche le classement")
 async def classement(interaction: discord.Interaction):
@@ -301,42 +300,40 @@ async def classement(interaction: discord.Interaction):
 @bot.tree.command(name="addpoints", description="Ajoute des points à un utilisateur")
 async def addpoints(interaction: discord.Interaction, user: discord.User, points: int):
     logDB.addLog("addpoints", interaction.user.id)
-    if interaction.user.id in moderatorID:
+    if interaction.user.guild_permissions.administrator:
         if database.getUser(user.id) == None:
-            await interaction.user.send("Cet utilisateur n'existe pas ou n'a pas encore répondu à une question !")
+            await interaction.response.send_message("Cet utilisateur n'existe pas ou n'a pas encore répondu à une question !")
         else:
             database.addPointsToUser(user.id, points)
-            await interaction.user.send(f"Vous avez ajouté {points} points à {user.name}")
+            await interaction.response.send_message(f"Vous avez ajouté {points} points à {user.name}")
     else:
         await interaction.user.send("Vous n'avez pas la permission d'utiliser cette commande !")
-    await interaction.response.send_message("Commande envoyée ! (résultat en mp)")
+    await interaction.delete_original_response()
 
 @bot.tree.command(name="removepoints", description="Retire des points à un utilisateur")
 async def removepoints(interaction: discord.Interaction, user: discord.User, points: int):
     logDB.addLog("removepoints", interaction.user.id)
-    if interaction.user.id in moderatorID:
+    if interaction.user.guild_permissions.administrator:
         if database.getUser(user.id) == None:
-            await interaction.user.send("Cet utilisateur n'existe pas ou n'a pas encore répondu à une question !")
+            await interaction.response.send_message("Cet utilisateur n'existe pas ou n'a pas encore répondu à une question !")
         else:
             database.removePointsToUser(user.id, points)
-            await interaction.user.send(f"Vous avez retiré {points} points à {user.name}")
+            await interaction.response.send_message(f"Vous avez retiré {points} points à {user.name}")
     else:
         await interaction.user.send("Vous n'avez pas la permission d'utiliser cette commande !")
-    await interaction.response.send_message("Commande envoyée ! (résultat en mp)")
 
 @bot.tree.command(name="maintenance", description="Active/Désactive la maintenance")
 async def maintenance(interaction: discord.Interaction, onoff: bool):
     logDB.addLog("maintenance", interaction.user.id)
-    if interaction.user.id in moderatorID:
+    if interaction.user.guild_permissions.administrator:
         if onoff:
             ObjConfig.setConfigItem("maintenance", "True")
-            await interaction.user.send("La maintenance est activée !")
+            await interaction.response.send_message("La maintenance est activée !")
         else:
-            Config.setConfigItem("maintenance", "False")
-            await interaction.user.send("La maintenance est désactivée !")
+            ObjConfig.setConfigItem("maintenance", "False")
+            await interaction.response.send_message("La maintenance est désactivée !")
     else:
-        await interaction.user.send("Vous n'avez pas la permission d'utiliser cette commande !")
-    await interaction.response.send_message("Commande envoyée ! (résultat en mp)")
+        await interaction.response.send_message("Vous n'avez pas la permission d'utiliser cette commande !")
                                
 def calcPoint(question_id):
     question = database.getQuestion(question_id)
@@ -352,14 +349,17 @@ async def get_username(user_id: int):
 
 @tasks.loop(seconds=5)
 async def StatusChanger():
-    first = database.getLeaderboard()[0]
-    await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=f"{await get_username(first[0])} ({first[1]} points)"))
+    if ObjConfig.getConfigItem('maintenance') == "True":
+        await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name="En maintenance"))
+    else:
+        first = database.getLeaderboard()[0]
+        await bot.change_presence(activity=discord.Activity(type=discord.ActivityType.watching, name=f"{await get_username(first[0])} ({first[1]} points)"))
 
 def loadConfigToVar():
-    global discordBotToken, moderatorID, commandPrefix, timeleft, maintenance, ObjConfig
+    global discordBotToken, commandPrefix, timeleft, maintenance, ObjConfig
     ObjConfig = Config('conf.json')
     discordBotToken = ObjConfig.loadConfig()['Bot Info']['Token']
-    moderatorID = ObjConfig.loadConfig()['ModeratorList']
+    # moderatorID = ObjConfig.loadConfig()['ModeratorList']
     commandPrefix = ObjConfig.loadConfig()['Bot Info']['Prefix']
     timeleft = ObjConfig.loadConfig()['Server Information']['Timeleft']
     maintenance = ObjConfig.getConfigItem('maintenance')
@@ -372,7 +372,7 @@ if __name__ == "__main__":
     loadConfigToVar()
     print("Configuration chargée !")
     print(f"Token : {discordBotToken}")
-    print(f"Moderator ID : {moderatorID}")
+    # print(f"Moderator ID : {moderatorID}")
     print(f"Command Prefix : {commandPrefix}")
     print(f"Timeleft : {timeleft}")
     print(f"Maintenance : {maintenance}")
