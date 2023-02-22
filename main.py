@@ -200,7 +200,7 @@ class Config:
 
     def createConfig(self):
         with open(self.fileName, "w") as json_file:
-            json.dump({"Bot Info": {"Token": "", "Prefix": "!"}, "Server Information": {"Timeleft": 50}, "maintenance": "False"}, json_file)
+            json.dump({"Bot Info": {"Token": "", "Prefix": "!"}, "Server Information": {"Timeleft": 50}, "maintenance": "False"}, json_file, indent=4)
 
     def loadConfig(self):
         with open(self.fileName) as json_file:
