@@ -41,6 +41,68 @@ async def question(interaction:discord.Interaction, question:str, channel:discor
     await channel.send("Choisissez votre réponse", view=view)
     await interaction.response.send_message("Question ajoutée", ephemeral=True)
 
+@bot.event
+async def on_button_click(interaction:discord.Interaction):
+    if interaction.custom_id in ["1","2","3","4"]:
+        await interaction.response.send_message("Vous avez choisi la réponse "+interaction.custom_id, ephemeral=True)
+        await interaction.message.delete()
+    else:
+        await interaction.response.send_message("Erreur", ephemeral=True)
+
+@bot.tree.command(name="removeQuestion", description="Supprimez une question")
+@commands.has_role("Master")
+async def removeQuestion(interaction:discord.Interaction, questionId:int):
+    game.removeQuestion(questionId)
+    await interaction.response.send_message("Question supprimée", ephemeral=True)
+
+@bot.tree.command(name="listQuestion", description="Listez les questions")
+@commands.has_role("Master")
+async def listQuestion(interaction:discord.Interaction):
+    await interaction.response.send_message("Liste des questions", ephemeral=True)
+    questions = game.getQuestions()
+    for question in questions:
+        await interaction.followup.send(question)
+        await interaction.response.send_message("Fin de la liste", ephemeral=True)
+
+@bot.tree.command(name="start", description="Démarrez la partie")
+@commands.has_role("Master")
+async def start(interaction:discord.Interaction):
+    await interaction.response.send_message("Partie démarrée", ephemeral=True)
+    await interaction.channel.send("Partie démarrée")
+    await interaction.channel.send("Choisissez votre réponse")
+    questions = game.getQuestions()
+    for question in questions:
+        await interaction.channel.send(question)
+        await interaction.channel.send("Fin de la liste")
+        await interaction.channel.send("Partie terminée")
+        await interaction.channel.send("Score : 0/0")
+        await interaction.channel.send("Partie terminée")
+        await interaction.channel.send("Score : 0/0")
+        await interaction.channel.send("Partie terminée")
+        await interaction.channel.send("Score : 0/0")
+        await interaction.channel.send("Partie terminée")
+        await interaction.channel.send("Score : 0/0")
+        await interaction.channel.send("Partie terminée")
+        await interaction.channel.send("Score : 0/0")
+        await interaction.channel.send("Partie terminée")
+        await interaction.channel.send("Score : 0/0")
+        await interaction.channel.send("Partie terminée")
+        await interaction.channel.send("Score : 0/0")
+        await interaction.channel.send("Partie terminée")
+        await interaction.channel.send("Score : 0/0")
+        await interaction.channel.send("Partie terminée")
+        await interaction.channel.send("Score : 0/0")
+
+@bot.tree.command(name="stop", description="Arrêtez la partie")
+@commands.has_role("Master")
+async def stop(interaction:discord.Interaction):
+    await interaction.response.send_message("Partie arrêtée", ephemeral=True)
+
+@bot.tree.command(name="score", description="Affichez le score")
+@commands.has_role("Master")
+async def score(interaction:discord.Interaction):
+    await interaction.response.send_message("Score : 0/0", ephemeral=True)
+
 if __name__=='__main__':
     logger = LoggerService(True)
     logger.addLogs("Info","Bot is starting")
