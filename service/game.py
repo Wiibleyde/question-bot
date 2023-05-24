@@ -4,7 +4,7 @@ from .const import CONST
 
 class GameDatabaseService:
     def __init__(self,filename):
-        self.filename = CONST.DATA_PATH + "/" + filename
+        self.filename = CONST.DATA_PATH + filename
         self.createDatabase()
 
     def createDatabase(self):
